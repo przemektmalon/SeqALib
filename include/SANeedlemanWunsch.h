@@ -20,6 +20,7 @@ private:
   using BaseType = SequenceAligner<ContainerType,Ty,Blank,MatchFnTy>;
 
   void cacheAllMatches(ContainerType &Seq1, ContainerType &Seq2) {
+	  auto t3 = std::chrono::high_resolution_clock::now();
     if (BaseType::getMatchOperation()==nullptr) {
       Matches = nullptr;
       return;
@@ -33,6 +34,10 @@ private:
     for (unsigned i = 0; i < SizeSeq1; i++)
       for (unsigned j = 0; j< SizeSeq2; j++)
         Matches[i*SizeSeq2 + j] = BaseType::match(Seq1[i],Seq2[j]);
+
+	auto t4 = std::chrono::high_resolution_clock::now();
+	auto durationn = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
+	//std::cout << "Cache speed: " << durationn << std::endl;
   }
 
   void computeScoreMatrix(ContainerType &Seq1, ContainerType &Seq2) {

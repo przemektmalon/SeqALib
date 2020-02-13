@@ -12,8 +12,14 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
         size_t MatchesRows;
         size_t MatchesCols;
 
-        int GapOpen = -3;
-        int GapExtend = -1;
+		ScoringSystem& Scoring = BaseType::getScoring();
+		const ScoreSystemType Match = Scoring.getMatchProfit();
+		const bool AllowMismatch = Scoring.getAllowMismatch();
+		const ScoreSystemType Mismatch = AllowMismatch
+			? Scoring.getMismatchPenalty()
+			: std::numeric_limits<ScoreSystemType>::min();
+		const ScoreSystemType GapOpen = Scoring.getGapOpenPenalty();
+		const ScoreSystemType GapExtend = Scoring.getGapExtendPenalty();
 
         size_t MaxRow;
         size_t MaxCol;
@@ -50,14 +56,6 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 			Iy = new int[NumRows * NumCols];
             MatrixRows = NumRows;
             MatrixCols = NumCols;
-
-            ScoringSystem &Scoring = BaseType::getScoring();
-            const ScoreSystemType Gap = Scoring.getGapPenalty();
-            const ScoreSystemType Match = Scoring.getMatchProfit();
-            const bool AllowMismatch = Scoring.getAllowMismatch();
-            const ScoreSystemType Mismatch = AllowMismatch
-                                        ?Scoring.getMismatchPenalty()
-                                        :std::numeric_limits<ScoreSystemType>::min();
 
         
             //Set up initial matrix scores that we know for sure 
@@ -232,11 +230,6 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 
             auto &Data = Result.Data;
 
-            ScoringSystem &Scoring = BaseType::getScoring();
-            const ScoreSystemType Gap = Scoring.getGapPenalty();
-            const ScoreSystemType Match = Scoring.getMatchProfit();
-            const bool AllowMismatch = Scoring.getAllowMismatch();
-            const ScoreSystemType Mismatch = AllowMismatch ? Scoring.getMismatchPenalty() : std::numeric_limits<ScoreSystemType>::min();
 			int MatrixType = 0;  //0 for M
 								 //1 for Ix
 								 //2 for Iy
@@ -278,11 +271,12 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 						MScore = std::max(MScore, 0);
                     }
 
-					if (MScore == 0) {
-						break;
-					}
-
                     if (Matrix[i*MatrixCols + j] == MScore) {
+
+						if (MScore == 0) {
+							break;
+						}
+
                         if (IsValidMatch || AllowMismatch){
                             Data.push_front(
                                 typename BaseType::EntryType(Seq1[i-1], Seq2[j-1], IsValidMatch)
@@ -322,10 +316,6 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 						MUpper = std::max(MUpper, 0);
 					}
 
-					if (MUpper == 0) {
-						break;
-					}
-
                     if (Ix[i*MatrixCols + j] == IxUpper && MatrixType == 1) {
                         //Up
                         Data.push_front(
@@ -339,6 +329,10 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
                         Data.push_front(
                             typename BaseType::EntryType(Seq1[i-1], Blank, false)
                         );
+
+						if (MUpper == 0) {
+							break;
+						}
 
                         MatrixType = 0;
                         i--;
@@ -372,10 +366,6 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 						MLeft = std::max(MLeft, 0);
 					}
 
-					if (MLeft == 0) {
-						break;
-					}
-
                     if (Iy[i*MatrixCols + j] == IyLeft && MatrixType == 2){
                         //Left 
                         Data.push_front(
@@ -389,6 +379,10 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
                         Data.push_front(
                             typename BaseType::EntryType(Blank, Seq2[j-1], false)
                         );
+
+						if (MLeft == 0) {
+							break;
+						}
 
                         MatrixType = 0;
                         j--;
@@ -406,8 +400,12 @@ class LocalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
         void clearAll() {
             if (Matrix) delete[]Matrix;
             if (Matches) delete[]Matches;
+			if (Ix) delete[]Ix;
+			if (Iy) delete[]Iy;
             Matrix = nullptr;
             Matches = nullptr;
+			Ix = nullptr;
+			Iy = nullptr;;
         }
 
         public:

@@ -12,11 +12,14 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
         size_t MatchesRows;
         size_t MatchesCols;
 
-        int GapOpen = -3;
-        int GapExtend = -1;
-
-        size_t MaxRow;
-        size_t MaxCol;
+		ScoringSystem& Scoring = BaseType::getScoring();
+		const ScoreSystemType Match = Scoring.getMatchProfit();
+		const bool AllowMismatch = Scoring.getAllowMismatch();
+		const ScoreSystemType Mismatch = AllowMismatch
+			? Scoring.getMismatchPenalty()
+			: std::numeric_limits<ScoreSystemType>::min();
+		const ScoreSystemType GapOpen = Scoring.getGapOpenPenalty();
+		const ScoreSystemType GapExtend = Scoring.getGapExtendPenalty();
 
         using BaseType = SequenceAligner<ContainerType,Ty,Blank,MatchFnTy>;
 
@@ -51,14 +54,6 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
             MatrixRows = NumRows;
             MatrixCols = NumCols;
 
-            ScoringSystem &Scoring = BaseType::getScoring();
-            const ScoreSystemType Gap = Scoring.getGapPenalty();
-            const ScoreSystemType Match = Scoring.getMatchProfit();
-            const bool AllowMismatch = Scoring.getAllowMismatch();
-            const ScoreSystemType Mismatch = AllowMismatch
-                                        ?Scoring.getMismatchPenalty()
-                                        :std::numeric_limits<ScoreSystemType>::min();
-
         
             //Set up initial matrix scores that we know for sure 
             //For Global Gotoh we know for sure that the first row
@@ -83,8 +78,6 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 
 
             //No if statements within these loops for efficiency
-            //TODO CHECK IF NEEDS ALTERED
-            ScoreSystemType MaxScore = std::numeric_limits<ScoreSystemType>::min();
 
             //Check for nullptr / If a match was found
             if (Matches) {
@@ -112,13 +105,6 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 							ScoreSystemType IyM = Iy[i* MatrixCols + j];
 							ScoreSystemType MScore = std::max({Diagonal, IxM, IyM});
 							Matrix[i * MatrixCols + j] = MScore;
-
-                            //Save the max score in the M matrix
-                            if (MScore>=MaxScore) {
-                                MaxScore = MScore;
-                                MaxRow=i;
-                                MaxCol=j;
-                            }
                         }
                     }
                 } 
@@ -144,13 +130,6 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 							ScoreSystemType IyM = Iy[i * MatrixCols + j];
 							ScoreSystemType MScore = std::max({Diagonal, IxM, IyM});
 							Matrix[i * MatrixCols + j] = MScore;
-
-                            //Save the max score in the M matrix
-                            if (MScore>=MaxScore) {
-                                MaxScore = MScore;
-                                MaxRow=i;
-                                MaxCol=j;
-                            }
                         }
                     }
                 }
@@ -179,13 +158,6 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 							ScoreSystemType IyM = Iy[i * MatrixCols + j];
 							ScoreSystemType MScore = std::max({Diagonal, IxM, IyM});
 							Matrix[i * MatrixCols + j] = MScore;
-
-                            //Save the max score in the M matrix
-                            if (MScore>=MaxScore) {
-                                MaxScore = MScore;
-                                MaxRow=i;
-                                MaxCol=j;
-                            }
                         }
                     }
                 } 
@@ -211,13 +183,6 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 							ScoreSystemType IyM = Iy[i * MatrixCols + j];
 							ScoreSystemType MScore = std::max({Diagonal, IxM, IyM});
 							Matrix[i * MatrixCols + j] = MScore;
-
-                            //Save the max score in the M matrix
-                            if (MScore>=MaxScore) {
-                                MaxScore = MScore;
-                                MaxRow=i;
-                                MaxCol=j;
-                            }
                         }
                     }
                 }
@@ -229,11 +194,6 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
 
             auto &Data = Result.Data;
 
-            ScoringSystem &Scoring = BaseType::getScoring();
-            const ScoreSystemType Gap = Scoring.getGapPenalty();
-            const ScoreSystemType Match = Scoring.getMatchProfit();
-            const bool AllowMismatch = Scoring.getAllowMismatch();
-            const ScoreSystemType Mismatch = AllowMismatch ? Scoring.getMismatchPenalty() : std::numeric_limits<ScoreSystemType>::min();
 			int MatrixType = 0;  //0 for M
 								 //1 for Ix
 								 //2 for Iy
@@ -404,8 +364,12 @@ class GlobalGotohSA : public SequenceAligner<ContainerType,Ty,Blank,MatchFnTy> {
         void clearAll() {
             if (Matrix) delete[]Matrix;
             if (Matches) delete[]Matches;
+			if (Ix) delete[]Ix;
+			if (Iy) delete[]Iy;
             Matrix = nullptr;
             Matches = nullptr;
+			Ix = nullptr;
+			Iy = nullptr;
         }
 
         public:

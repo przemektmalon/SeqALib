@@ -62,6 +62,11 @@ public:
     return (*this);
   }
 
+  AlignedSequence<Ty> operator=(const AlignedSequence <Ty, Blank> other) {
+	  Data = other.Data;
+	  return (this);
+  }
+
   void append(const AlignedSequence<Ty, Blank> &Other) {
     Data.insert(Data.end(), Other.Data.begin(), Other.Data.end());
   }
@@ -80,6 +85,8 @@ class ScoringSystem {
   ScoreSystemType Gap;
   ScoreSystemType Match;
   ScoreSystemType Mismatch;
+  ScoreSystemType GapOpen;
+  ScoreSystemType GapExtend;
   bool AllowMismatch;
 public:
   ScoringSystem(ScoreSystemType Gap, ScoreSystemType Match) {
@@ -96,6 +103,14 @@ public:
     this->AllowMismatch = AllowMismatch;
   }
 
+  ScoringSystem(ScoreSystemType GapOpen, ScoreSystemType GapExtend, ScoreSystemType Match, ScoreSystemType Mismatch, bool AllowMismatch = true) {
+	  this->GapOpen = GapOpen;
+	  this->GapExtend = GapExtend;
+	  this->Match = Match;
+	  this->Mismatch = Mismatch;
+	  this->AllowMismatch = AllowMismatch;
+  }
+
   bool getAllowMismatch() {
     return AllowMismatch;
   }
@@ -110,6 +125,14 @@ public:
 
   ScoreSystemType getMatchProfit() {
     return Match;
+  }
+
+  ScoreSystemType getGapOpenPenalty() {
+	  return GapOpen;
+  }
+
+  ScoreSystemType getGapExtendPenalty() {
+	  return GapExtend;
   }
 };
 
@@ -145,5 +168,9 @@ public:
 #include "SASmithWaterman.h"
 #include "SALocalGotoh.h"
 #include "SAGlobalGotoh.h"
+#include "SAMyersMiller.h"
+#include "SABLAT.h"
+#include "GappedBLATSA.h"
+#include "SAFOGSAA.h"
 
 #endif
