@@ -2,19 +2,19 @@
 template <typename ContainerType, typename Ty = typename ContainerType::value_type, Ty Blank = Ty(0), typename MatchFnTy = std::function<bool(Ty, Ty)>>
 class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 {
-private:
-	bool* Matches;
+  private:
+	bool *Matches;
 	size_t MatchesRows;
 	size_t MatchesCols;
 	int M;
 	int N;
 
-	ScoringSystem& Scoring = BaseType::getScoring();
+	ScoringSystem &Scoring = BaseType::getScoring();
 	const ScoreSystemType Match = Scoring.getMatchProfit();
 	const bool AllowMismatch = Scoring.getAllowMismatch();
 	const ScoreSystemType Mismatch = AllowMismatch
-		? Scoring.getMismatchPenalty()
-		: std::numeric_limits<ScoreSystemType>::min();
+										 ? Scoring.getMismatchPenalty()
+										 : std::numeric_limits<ScoreSystemType>::min();
 	const ScoreSystemType GapOpen = Scoring.getGapOpenPenalty();
 	const ScoreSystemType GapExtend = Scoring.getGapExtendPenalty();
 
@@ -22,7 +22,7 @@ private:
 
 	class Node
 	{
-	public:
+	  public:
 		Node() {}
 
 		int P1 = 0;
@@ -32,7 +32,7 @@ private:
 		int Tmax = std::numeric_limits<int>::min();
 		AlignedSequence<Ty, Blank> Seq;
 
-		Node* operator = (const Node b)
+		Node *operator=(const Node b)
 		{
 			this->Tmax = b.Tmax;
 			this->Tmin = b.Tmin;
@@ -43,22 +43,28 @@ private:
 			return this;
 		}
 
-		bool operator < (Node& b) const
+		bool operator<(Node &b) const
 		{
 			return Tmax > b.Tmax;
 		}
 
-		//Use Tmax to sort priority queue
+		/*//Use Tmax to sort priority queue
 		//On the event where Tmax are equal
 		//Use Tmin
-		bool operator > (const Node b) const
+		bool operator>(const Node b) const
 		{
+			std::cout << "We usin this one" << std::endl;
 			if (Tmax == b.Tmax)
 				return Tmin < b.Tmin;
 			return Tmax < b.Tmax;
+		}*/
+
+		bool operator>(const Node b) const
+		{
+			return Tmin < b.Tmin;
 		}
 
-		void calculateScores(int newP1, int newP2, int M, int N, AlignedSequence<Ty, Blank>& Result, ScoringSystem& scoreSystem)
+		void calculateScores(int newP1, int newP2, int M, int N, AlignedSequence<Ty, Blank> &Result, ScoringSystem &scoreSystem)
 		{
 
 			const ScoreSystemType Gap = scoreSystem.getGapPenalty();
@@ -68,7 +74,7 @@ private:
 
 			P1 = newP1;
 			P2 = newP2;
-			
+
 			//Calculate Future scores (Fmin, Fmax)
 			int Fmax = 0;
 			int Fmin = 0;
@@ -100,10 +106,11 @@ private:
 		int min;
 		int max;
 
-		std::vector<std::priority_queue<Node, std::vector<Node>, std::greater<Node>>>* table;
+		std::vector<std::priority_queue<Node, std::vector<Node>, std::greater<Node>>> *table;
 
-	public:
-		HashPriorityQueue(int min, int max) {
+	  public:
+		HashPriorityQueue(int min, int max)
+		{
 			this->numBuckets = max - min;
 			this->min = min;
 			this->max = max;
@@ -111,45 +118,68 @@ private:
 			table->resize(numBuckets);
 		}
 
-		void insertItem(int key, Node node) {
+		int insertItem(int key, Node node, int maxPointer)
+		{
 			int index = hashFunction(key);
 			table->at(index).push(node);
+
+			//First entry so maxPointer is set to the one being inserted
+			if (maxPointer == min - 1)
+			{
+				return node.Tmax;
+			}
+
+			//If the one we are inserting is better than what we are currently
+			//Pointing towards then return
+			//A new pointer to that position in the hash
+			if (node.Tmax > maxPointer)
+			{
+				maxPointer = node.Tmax;
+			}
+
+			return maxPointer;
 		}
 
-		Node getTop(int key) {
+		//Get top from the hashed queue and pop it too
+		Node getTop(int key)
+		{
 			int index = hashFunction(key);
-			if (table->at(index).size() == 0) {
-
+			if (table->at(index).size() == 0)
+			{
+				Node a;
+				return a;
 			}
 			return table->at(index).top();
 		}
 
-		/*void deleteItem(int key) {
+		//Delete top item and return a new maxPointer
+		int deleteTop(int key)
+		{
 			int index = hashFunction(key);
+			table->at(index).pop();
 
-			std::list<std::priority_queue<Node, std::vector<Node>, std::greater<Node>>>::iterator i;
-			for (i = table[index].begin(); i != table[index].end(); i++) {
-				if (*i == key) {
-					break;
-				}
+			int maxPointer = key;
+
+			int i = index;
+			while (table->at(i).empty())
+			{
+				i++;
+				maxPointer--;
 			}
 
-			if (i != table[index].end()) {
-				table[index].erase(i);
-			}
-		}*/
+			return maxPointer;
+		}
 
-		int hashFunction(int key) {
-			return max-key;
+		int hashFunction(int key)
+		{
+			return max - key;
 		}
 	};
 
-
-	std::priority_queue<Node, std::vector<Node>, std::greater<Node>> pqueue;
-	Node* c;
+	Node *c;
 
 	//Save all the matches to memory
-	void cacheAllMatches(ContainerType& Seq1, ContainerType& Seq2)
+	void cacheAllMatches(ContainerType &Seq1, ContainerType &Seq2)
 	{
 		if (BaseType::getMatchOperation() == nullptr)
 		{
@@ -169,10 +199,10 @@ private:
 	}
 
 	//Build the resulting aligned sequence
-	void buildAlignment(ContainerType& Seq1, ContainerType& Seq2, AlignedSequence<Ty, Blank>& Result)
+	void buildAlignment(ContainerType &Seq1, ContainerType &Seq2, AlignedSequence<Ty, Blank> &Result)
 	{
 
-		ScoringSystem& Scoring = BaseType::getScoring();
+		ScoringSystem &Scoring = BaseType::getScoring();
 		const ScoreSystemType Gap = Scoring.getGapPenalty();
 		const ScoreSystemType Match = Scoring.getMatchProfit();
 		const bool AllowMismatch = Scoring.getAllowMismatch();
@@ -203,8 +233,9 @@ private:
 			Fmax = (x1 * Match) + (Gap * (x2 - x1));
 		}
 
-		//HashPriorityQueue* hpqueue = new HashPriorityQueue(Fmin, Fmax);
-
+		HashPriorityQueue *hpqueue = new HashPriorityQueue(Fmin, Fmax);
+		int maxPointer = Fmin - 1; //Points towards top of hashed priority queue
+								   //Initially points towards nothing
 
 		if (M != 0 && N != 0)
 		{
@@ -212,9 +243,9 @@ private:
 			{
 				while (P1 <= (M - 1) || P2 <= (N - 1))
 				{
-					auto t1 = std::chrono::high_resolution_clock::now();
 
-					if (currentNode.presentScore > c[P1 * N + P2].presentScore) {
+					if (currentNode.presentScore > c[P1 * N + P2].presentScore)
+					{
 						c[P1 * N + P2] = currentNode;
 					}
 
@@ -232,7 +263,6 @@ private:
 					{
 						IsValidMatch = (Seq1[P1] == Seq2[P2]);
 					}
-
 
 					//Match/Mismatch
 					AlignedSequence<Ty, Blank> MMSeq = currentNode.Seq;
@@ -254,7 +284,6 @@ private:
 					Node G_Node;
 					Node childNode;
 
-
 					int Similarity = IsValidMatch ? Match : Mismatch;
 					MMNode.presentScore = currentNode.presentScore + Similarity;
 					_GNode.presentScore = currentNode.presentScore + Gap;
@@ -264,77 +293,47 @@ private:
 					_GNode.calculateScores(P1, P2 + 1, M, N, _GSeq, Scoring);
 					G_Node.calculateScores(P1 + 1, P2, M, N, G_Seq, Scoring);
 
-
-					if (P1 > (M - 1)) {
+					if (P1 > (M - 1))
+					{
 						MMNode.Tmax = std::numeric_limits<int>::min();
 						G_Node.Tmax = std::numeric_limits<int>::min();
 					}
-					if (P2 > (N - 1)) {
+					if (P2 > (N - 1))
+					{
 						MMNode.Tmax = std::numeric_limits<int>::min();
 						_GNode.Tmax = std::numeric_limits<int>::min();
 					}
 
-					auto t3 = std::chrono::high_resolution_clock::now();
-
-					auto durationn = std::chrono::duration_cast<std::chrono::microseconds>(t3 - t1).count();
-
-					//std::cout << "Time to extend: " << durationn << std::endl;
-
 					if (MMNode.Tmax >= std::max(_GNode.Tmax, G_Node.Tmax))
 					{
-						auto t6 = std::chrono::high_resolution_clock::now();
 						childNode = MMNode;
 						P1++;
 						P2++;
-						pqueue.push(_GNode);
-						pqueue.push(G_Node);
-						//hpqueue->insertItem(_GNode.Tmax, _GNode);
-						//hpqueue->insertItem(G_Node.Tmax, G_Node);
-
-						auto t7 = std::chrono::high_resolution_clock::now();
-						auto durationn = std::chrono::duration_cast<std::chrono::microseconds>(t7 - t6).count();
-						std::cout << "Adding to queue: " << durationn << std::endl;
+						maxPointer = hpqueue->insertItem(_GNode.Tmax, _GNode, maxPointer);
+						maxPointer = hpqueue->insertItem(G_Node.Tmax, G_Node, maxPointer);
 					}
 					else if (G_Node.Tmax > std::max(MMNode.Tmax, _GNode.Tmax))
 					{
-						auto t6 = std::chrono::high_resolution_clock::now();
 						childNode = G_Node;
 						P1++;
-						pqueue.push(MMNode);
-						pqueue.push(_GNode);
-						//hpqueue->insertItem(_GNode.Tmax, _GNode);
-						//hpqueue->insertItem(MMNode.Tmax, MMNode);
-
-						auto t7 = std::chrono::high_resolution_clock::now();
-						auto durationn = std::chrono::duration_cast<std::chrono::microseconds>(t7 - t6).count();
-						std::cout << "Adding to queue: " << durationn << std::endl;
+						maxPointer = hpqueue->insertItem(_GNode.Tmax, _GNode, maxPointer);
+						maxPointer = hpqueue->insertItem(MMNode.Tmax, MMNode, maxPointer);
 					}
 					else
 					{
-						auto t6 = std::chrono::high_resolution_clock::now();
 						childNode = _GNode;
 						P2++;
-						pqueue.push(MMNode);
-						pqueue.push(G_Node);
-						//hpqueue->insertItem(MMNode.Tmax, MMNode);
-						//hpqueue->insertItem(G_Node.Tmax, G_Node);
-
-						auto t7 = std::chrono::high_resolution_clock::now();
-						auto durationn = std::chrono::duration_cast<std::chrono::microseconds>(t7 - t6).count();
-						std::cout << "Adding to queue: " << durationn << std::endl;
+						maxPointer = hpqueue->insertItem(MMNode.Tmax, MMNode, maxPointer);
+						maxPointer = hpqueue->insertItem(G_Node.Tmax, G_Node, maxPointer);
 					}
-					//auto t4 = std::chrono::high_resolution_clock::now();
-					//auto durationn = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
-					//std::cout << "Per BIT HERE: " << durationn << std::endl;
 
-					//std::cout << "(" << childNode.P1 << "," << childNode.P2 << ")" << std::endl;
 					if (childNode.presentScore <= c[P1 * N + P2].presentScore)
 					{
 						//Prune the current branch
-						childNode = pqueue.top();
+						childNode = hpqueue->getTop(maxPointer);
+						maxPointer = hpqueue->deleteTop(maxPointer);
 						P1 = childNode.P1;
 						P2 = childNode.P2;
-						pqueue.pop();
 					}
 					else
 					{
@@ -343,23 +342,15 @@ private:
 						if (childNode.Tmax <= optimal)
 						{
 							//Prune the current branch
-							childNode = pqueue.top();
+							childNode = hpqueue->getTop(maxPointer);
+							maxPointer = hpqueue->deleteTop(maxPointer);
 							P1 = childNode.P1;
 							P2 = childNode.P2;
-							pqueue.pop();
 						}
 					}
 
 					currentNode = childNode;
-
-					auto t2 = std::chrono::high_resolution_clock::now();
-
-					auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-
-					//std::cout << "Time per loop: " << duration << std::endl;
-
 				}
-
 
 				if (c[P1 * N + P2].Tmax >= optimal)
 				{
@@ -370,29 +361,31 @@ private:
 					optimalNode = currentNode;
 				}
 
-				//pick the top most node from the priority queue and update the new Tmax
-				currentNode = pqueue.top();
+				currentNode = hpqueue->getTop(maxPointer);
+				maxPointer = hpqueue->deleteTop(maxPointer);
 				P1 = currentNode.P1;
 				P2 = currentNode.P2;
 				newTmax = currentNode.Tmax;
-				pqueue.pop();
 
 				//If top most node has Tmax so less than 30% similarity then
 				//end the process and report approximate score
 				int maxScore = 0;
 				int minScore = 0;
-				if (M > N) {
+				if (M > N)
+				{
 					maxScore = (M - N) * Gap + (N * Match);
 					minScore = (M - N) * Gap + (N * Mismatch);
 				}
-				else {
+				else
+				{
 					maxScore = (N - M) * Gap + (M * Match);
 					minScore = (N - M) * Gap + (M * Mismatch);
 				}
 
 				int range = maxScore - minScore;
 				float similarity = (float)(newTmax + std::abs(minScore)) / range;
-				if (similarity < 0.3) {
+				if (similarity < 0.3)
+				{
 					Result.Data = optimalNode.Seq.Data;
 					return;
 				}
@@ -414,8 +407,7 @@ private:
 		c = nullptr;
 	}
 
-public:
-
+  public:
 	static ScoringSystem getDefaultScoring()
 	{
 		return ScoringSystem(-1, 2, -1);
@@ -426,24 +418,11 @@ public:
 	FOGSAASA(ScoringSystem Scoring, MatchFnTy Match = nullptr)
 		: BaseType(Scoring, Match), Matches(nullptr) {}
 
-
-	virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType& Seq1, ContainerType& Seq2)
+	virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType &Seq1, ContainerType &Seq2)
 	{
 		AlignedSequence<Ty, Blank> Result;
-		auto t1 = std::chrono::high_resolution_clock::now();
 		cacheAllMatches(Seq1, Seq2);
-		auto t2 = std::chrono::high_resolution_clock::now();
-
-		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-
-		std::cout << "Time to cache " << duration << std::endl;
-		t1 = std::chrono::high_resolution_clock::now();
 		buildAlignment(Seq1, Seq2, Result);
-		t2 = std::chrono::high_resolution_clock::now();
-
-		duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-
-		std::cout << "Time to build " << duration << std::endl;
 		clearAll();
 		return Result;
 	}

@@ -85,6 +85,8 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		//Find words of sequence 1
 		std::vector<candidateWord> words;
 		std::vector<candidateWord> candidateWords;
+
+		auto t1 = std::chrono::high_resolution_clock::now();
 		do
 		{
 			//For near-perfect matches use Match*k-1
@@ -140,6 +142,10 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			words.clear();
 		} while (candidateWords.size() == 0);
 
+		auto t2 = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+		std::cout << "Time taken to get candidate words: " << duration << " microseconds";
+
 		//Begin expanding out the seeds in both directions
 		while (candidateWords.size() >= 1)
 		{
@@ -155,12 +161,13 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 					//The position at which the first word ends is greater than the beginning of the second word
 					//This means they are overlapping so merge them together
-					if ((firstWord.indexSeq1 + firstWord.wordSize > secondWord.indexSeq1) && (firstWord.indexSeq2 + firstWord.wordSize > secondWord.indexSeq2) && (firstWord.indexSeq1!=secondWord.indexSeq1))
+					if ((firstWord.indexSeq1 + firstWord.wordSize > secondWord.indexSeq1) && (firstWord.indexSeq2 + firstWord.wordSize > secondWord.indexSeq2) && (firstWord.indexSeq1 != secondWord.indexSeq1))
 					{
 
 						int overlapSize = firstWord.indexSeq1 + firstWord.wordSize - secondWord.indexSeq1;
 						int overlapSeq2Size = firstWord.indexSeq2 + firstWord.wordSize - secondWord.indexSeq2;
-						if (overlapSize != overlapSeq2Size) {
+						if (overlapSize != overlapSeq2Size)
+						{
 							i++;
 							continue;
 						}
