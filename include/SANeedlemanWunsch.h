@@ -166,6 +166,8 @@ private:
 
     int i = MatrixRows - 1, j = MatrixCols - 1;
 
+    std::cout << Matrix[(i)*MatrixCols + j] << std::endl;
+
     while (i > 0 || j > 0)
     {
       if (i > 0 && j > 0)
