@@ -1,4 +1,5 @@
 #include <vector>
+#include <queue>
 template <typename ContainerType, typename Ty = typename ContainerType::value_type, Ty Blank = Ty(0), typename MatchFnTy = std::function<bool(Ty, Ty)>>
 class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 {
@@ -6,7 +7,7 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 	int wordSize;
 	int initialThreshold;
 	int distance;
-	int gapExpansionThreshold = 22;
+	int gapExpansionThreshold = 0;
 
 	using BaseType = SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>;
 
@@ -24,8 +25,7 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		int indexSeq1; //Index of the word on sequence 1
 		int indexSeq2; //Index of the word on sequence 2
 		int wordSize;
-		int maxScore;		//Maximum score achieved by the alignment
-		ContainerType word; //The word itself
+		int maxScore; //Maximum score achieved by the alignment
 		bool saved = false;
 
 		candidateWord *operator=(const candidateWord b)
@@ -35,9 +35,13 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			this->indexSeq2 = b.indexSeq2;
 			this->wordSize = b.wordSize;
 			this->maxScore = b.maxScore;
-			this->word = b.word;
 			this->saved = b.saved;
 			return this;
+		}
+
+		bool operator<(const candidateWord &b) const
+		{
+			return indexSeq1 < b.indexSeq1;
 		}
 	};
 
@@ -85,7 +89,6 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		std::fill(diagonalWordVector.begin(), diagonalWordVector.end(), -1);
 
 		distance = 4 * wordSize;
-		wordSize = 2;
 
 		//Prefer to calculate overlapping k-mers of shorter sequence
 		//Switch the variables as Seq1 is assumed to be the shorter sequence
@@ -104,13 +107,11 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		std::vector<candidateWord> candidateWords;
 		do
 		{
-			initialThreshold = Match * (wordSize);
+			initialThreshold = Match * wordSize;
 
 			for (int i = 0; i < Seq1.size() - wordSize + 1; i++)
 			{
-				ContainerType word = Seq1.substr(i, wordSize);
 				candidateWord cWord;
-				cWord.word = word;
 				cWord.indexSeq1 = i;
 				cWord.wordSize = wordSize;
 				words.push_back(cWord);
@@ -126,9 +127,7 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					for (int k = 0; k < wordSize; k++)
 					{
 
-						char wordChar = words[i].word[k];
-						ScoreSystemType Similarity = wordChar == Seq2[j + k] ? Match : Mismatch;
-
+						ScoreSystemType Similarity = BaseType::match(Seq1[words[i].indexSeq1 + k], Seq2[j + k]) ? Match : Mismatch;
 						score += Similarity;
 					}
 
@@ -156,8 +155,14 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			words.clear();
 		} while (candidateWords.size() == 0);
 
+		gapExpansionThreshold = (wordSize * Match) + (Match * log2(SizeSeq2));
+		std::cout << "Gap expansion threshold: " << gapExpansionThreshold << std::endl;
+		std::cout << "Wordsize: " << wordSize << std::endl;
+		std::cout << "Distance: " << distance << std::endl;
+
 		std::vector<candidateWord> completeWords;
 		std::vector<candidateWord> newCandidates = candidateWords;
+
 		//Begin expanding out the seeds in both directions
 		while (candidateWords.size() >= 1)
 		{
@@ -178,10 +183,19 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				}
 				else
 				{
-					//If the word is within distane of another word
-					if ((diagonalVector[diagonal] + distance >= newCandidates[i].indexSeq1) && (diagonalVector[diagonal] <= newCandidates[i].indexSeq1) && (diagonalVector[diagonal] + diagonalWordVector[diagonal] < newCandidates[i].indexSeq1))
+					//If the word is within distance of the previous same diagonal word
+					if ((diagonalVector[diagonal] + distance >= newCandidates[i].indexSeq1))
 					{
 						allowExtension = true;
+					}
+
+					//If the word is within distance of the next same diagonal word
+					if ((i < candidateWords.size() - 1) && !allowExtension)
+					{
+						if (newCandidates[i].indexSeq1 + distance >= newCandidates[i + 1].indexSeq1)
+						{
+							allowExtension = true;
+						}
 					}
 
 					diagonalVector[diagonal] = newCandidates[i].indexSeq1;
@@ -198,7 +212,6 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					if (leftIndex >= 0)
 					{ //We can expand left
 						char leftChar = Seq1[leftIndex];
-						newCandidates[i].word = leftChar + newCandidates[i].word;
 						newCandidates[i].indexSeq1--;
 						newCandidates[i].indexSeq2--;
 						newCandidates[i].wordSize++;
@@ -211,13 +224,12 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						}
 						else
 						{
-							Similarity = leftChar == Seq2[newCandidates[i].indexSeq2] ? Match : Mismatch;
+							Similarity = BaseType::match(Seq1[leftIndex], Seq2[newCandidates[i].indexSeq2]) ? Match : Mismatch;
 						}
 
 						//A detremental expansion so revert
 						if (newCandidates[i].score + Similarity < newCandidates[i].score)
 						{
-							newCandidates[i].word = newCandidates[i].word.substr(1, newCandidates[i].word.size());
 							newCandidates[i].indexSeq1++;
 							newCandidates[i].indexSeq2++;
 							newCandidates[i].wordSize--;
@@ -235,7 +247,6 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					if (rightIndex <= Seq1.size())
 					{
 						char rightChar = Seq1[rightIndex];
-						newCandidates[i].word = newCandidates[i].word + rightChar;
 						newCandidates[i].wordSize++;
 
 						ScoreSystemType Similarity;
@@ -246,13 +257,12 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						}
 						else
 						{
-							Similarity = rightChar == Seq2[newCandidates[i].indexSeq2 + newCandidates[i].wordSize - 1] ? Match : Mismatch;
+							Similarity = BaseType::match(Seq1[rightIndex], Seq2[newCandidates[i].indexSeq2 + newCandidates[i].wordSize - 1]) ? Match : Mismatch;
 						}
 
 						//A detremental expansion so revert
 						if (newCandidates[i].score + Similarity < newCandidates[i].score)
 						{
-							newCandidates[i].word = newCandidates[i].word.substr(0, newCandidates[i].word.size() - 1);
 							newCandidates[i].wordSize--;
 						}
 						else
@@ -267,7 +277,7 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				//Store word that is complete (cannot be expanded further)
 				//And is above a certain threshold
 				//These words will be used for creating gapped alignments
-				if ((!expansion) && (allowExtension) && (!newCandidates[i].saved) && newCandidates[i].score > 2)
+				if ((!expansion) && (allowExtension) && (!newCandidates[i].saved) && newCandidates[i].score > gapExpansionThreshold)
 				{
 					completeWords.push_back(newCandidates[i]);
 					newCandidates[i].saved = true;
@@ -308,6 +318,9 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			}
 		}
 
+		//Sort the HSPs by index so that they may be aligned
+		std::sort(completeWords.begin(), completeWords.end());
+
 		//Build alignment
 		if (switched)
 		{
@@ -328,20 +341,19 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		int recentIndexSeq2 = 0;
 		bool allowAlign = true;
 		candidateWord recentWord;
+
 		for (int i = 0; i < completeWords.size(); i++)
 		{
 			//Align HSP
 			if (allowAlign)
 			{
-				int k = 0;
-				for (int j = completeWords[i].indexSeq2; j < completeWords[i].indexSeq2 + completeWords[i].wordSize; j++)
+
+				for (int j = 0; j < completeWords[i].wordSize; j++)
 				{
-					bool isValidMatch = completeWords[i].word[k] == Seq2[j];
+					bool isValidMatch = BaseType::match(Seq1[completeWords[i].indexSeq1 + j], Seq2[completeWords[i].indexSeq2 + j]);
 
 					Data.push_back(
-						typename BaseType::EntryType(completeWords[i].word[k], Seq2[j], isValidMatch));
-
-					k++;
+						typename BaseType::EntryType(Seq1[completeWords[i].indexSeq1 + j], Seq2[completeWords[i].indexSeq2 + j], isValidMatch));
 				}
 
 				recentWord = completeWords[i];
@@ -372,7 +384,8 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 	}
 
   public:
-	static ScoringSystem getDefaultScoring()
+	static ScoringSystem
+	getDefaultScoring()
 	{
 		return ScoringSystem(-1, 2, -1);
 	}

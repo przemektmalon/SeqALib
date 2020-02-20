@@ -1,4 +1,8 @@
 #include <queue>
+
+int tops = 0;
+int score = 0;
+int expanded = 0;
 template <typename ContainerType, typename Ty = typename ContainerType::value_type, Ty Blank = Ty(0), typename MatchFnTy = std::function<bool(Ty, Ty)>>
 class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 {
@@ -39,7 +43,7 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		int Tmax = std::numeric_limits<int>::min();
 		AlignType type;
 
-		Node *operator=(const Node b)
+		Node *operator=(const Node &b)
 		{
 			this->Tmax = b.Tmax;
 			this->Tmin = b.Tmin;
@@ -57,7 +61,7 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 		//Hash sorts by Tmax, but on case where Tmax are the same
 		//use Tmin
-		bool operator>(const Node b) const
+		bool operator>(const Node &b) const
 		{
 			return Tmin < b.Tmin;
 		}
@@ -115,7 +119,7 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			table->resize(numBuckets);
 		}
 
-		int insertItem(int key, Node node, int maxPointer)
+		int insertItem(int key, Node &node, int maxPointer)
 		{
 			int index = hashFunction(key);
 
@@ -149,10 +153,12 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			return maxPointer;
 		}
 
-		//Get top from the hashed queue and pop it too
+		//Get top from the hashed queue
 		Node getTop(int key)
 		{
 			int index = hashFunction(key);
+
+			tops++;
 
 			if (!checkIndex(index))
 			{
@@ -299,12 +305,13 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 		int threshold = th * Match + (sl - th) * Mismatch + Gap * (ml - sl);
 
-		int expanded = 0;
 		int inserted = 0;
 
 		HashPriorityQueue *hpqueue = new HashPriorityQueue(Fmin, Fmax);
 		int maxPointer = Fmin - 1; //Points towards top of hashed priority queue
 								   //Initially points towards nothing
+
+		int pathend = 0;
 
 		//std::cout << M << " " << N << std::endl;
 		if (M != 0 && N != 0)
@@ -314,14 +321,11 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				while (P1 <= (M - 1) || P2 <= (N - 1))
 				{
 
+					auto t1 = std::chrono::high_resolution_clock::now();
+
 					if (!c[P1 * N + P2])
 					{
 						c[P1 * N + P2] = new Node;
-					}
-
-					if (currentNode.presentScore > c[P1 * N + P2]->presentScore)
-					{
-						*c[P1 * N + P2] = currentNode;
 					}
 
 					if (currentNode.Tmax < c[P1 * N + P2]->Tmax)
@@ -332,30 +336,26 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						currentNode = hpqueue->getTop(maxPointer);
 						maxPointer = hpqueue->deleteTop(maxPointer);
 
-						if (maxPointer <= optimal)
+						if (maxPointer <= optimal || maxPointer == Fmin - 1)
 						{
-							std::cout << "this new case is called" << std::endl;
 							align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 							return;
 						}
-						if (maxPointer == Fmin - 1)
-						{
-							std::cout << "insertions: " << inserted << std::endl;
-							std::cout << "Expanded nodes: " << expanded << std::endl;
-							align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
-							return;
-						}
+
 						P1 = currentNode.P1;
 						P2 = currentNode.P2;
 
 						continue;
 					}
 
+					if (currentNode.presentScore > c[P1 * N + P2]->presentScore)
+					{
+						*c[P1 * N + P2] = currentNode;
+					}
+
 					//Select the best child from the remaining children according to the Tmax
 					//Develop sequence by adding either Match, Mismatch, or Gap
 					//From each developed sequence, calculate fitness scores
-					int x = P1;
-					int y = P2;
 					bool IsValidMatch = false;
 					if (Matches)
 					{
@@ -403,18 +403,13 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						{
 							inserted++;
 							maxPointer = hpqueue->insertItem(_GNode.Tmax, _GNode, maxPointer);
+							maxPointer = hpqueue->insertItem(G_Node.Tmax, G_Node, maxPointer);
 						}
-						else if (G_Node.Tmax >= Fmin && G_Node.Tmax > _GNode.Tmax)
+						else if (G_Node.Tmax >= Fmin && G_Node.Tmax >= _GNode.Tmax)
 						{
 							inserted++;
 							maxPointer = hpqueue->insertItem(G_Node.Tmax, G_Node, maxPointer);
-						}
-						else if (G_Node.Tmax >= Fmin && _GNode.Tmax)
-						{
-							inserted++;
-							inserted++;
 							maxPointer = hpqueue->insertItem(_GNode.Tmax, _GNode, maxPointer);
-							maxPointer = hpqueue->insertItem(G_Node.Tmax, G_Node, maxPointer);
 						}
 					}
 					else if (G_Node.Tmax > std::max(MMNode.Tmax, _GNode.Tmax))
@@ -426,18 +421,13 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						{
 							inserted++;
 							maxPointer = hpqueue->insertItem(_GNode.Tmax, _GNode, maxPointer);
+							maxPointer = hpqueue->insertItem(MMNode.Tmax, MMNode, maxPointer);
 						}
-						else if (MMNode.Tmax >= Fmin && MMNode.Tmax > _GNode.Tmax)
+						else if (MMNode.Tmax >= Fmin && MMNode.Tmax >= _GNode.Tmax)
 						{
 							inserted++;
 							maxPointer = hpqueue->insertItem(MMNode.Tmax, MMNode, maxPointer);
-						}
-						else if (_GNode.Tmax >= Fmin && MMNode.Tmax >= Fmin)
-						{
-							inserted++;
-							inserted++;
 							maxPointer = hpqueue->insertItem(_GNode.Tmax, _GNode, maxPointer);
-							maxPointer = hpqueue->insertItem(MMNode.Tmax, MMNode, maxPointer);
 						}
 					}
 					else
@@ -449,15 +439,10 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						{
 							inserted++;
 							maxPointer = hpqueue->insertItem(G_Node.Tmax, G_Node, maxPointer);
-						}
-						else if (MMNode.Tmax >= Fmin && MMNode.Tmax > G_Node.Tmax)
-						{
-							inserted++;
 							maxPointer = hpqueue->insertItem(MMNode.Tmax, MMNode, maxPointer);
 						}
-						else if (G_Node.Tmax >= Fmin && MMNode.Tmax >= Fmin)
+						else if (MMNode.Tmax >= Fmin && MMNode.Tmax >= G_Node.Tmax)
 						{
-							inserted++;
 							inserted++;
 							maxPointer = hpqueue->insertItem(G_Node.Tmax, G_Node, maxPointer);
 							maxPointer = hpqueue->insertItem(MMNode.Tmax, MMNode, maxPointer);
@@ -477,18 +462,12 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						childNode = hpqueue->getTop(maxPointer);
 						maxPointer = hpqueue->deleteTop(maxPointer);
 
-						if (maxPointer <= optimal)
+						if (maxPointer <= optimal || maxPointer == Fmin - 1)
 						{
-							std::cout << "this new case is called" << std::endl;
 							align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 							return;
 						}
-						if (maxPointer == Fmin - 1)
-						{
-							std::cout << "Expanded nodes: " << expanded << std::endl;
-							align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
-							return;
-						}
+
 						P1 = childNode.P1;
 						P2 = childNode.P2;
 					}
@@ -496,21 +475,14 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					{
 
 						*c[P1 * N + P2] = childNode;
-						if (childNode.Tmax <= optimal)
+						if (childNode.Tmax < optimal)
 						{
 							//Prune the current branch
 							childNode = hpqueue->getTop(maxPointer);
 							maxPointer = hpqueue->deleteTop(maxPointer);
 
-							if (maxPointer <= optimal)
+							if (maxPointer <= optimal || maxPointer == Fmin - 1)
 							{
-								std::cout << "this new case is called" << std::endl;
-								align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
-								return;
-							}
-							if (maxPointer == Fmin - 1)
-							{
-								std::cout << "Expanded nodes: " << expanded << std::endl;
 								align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 								return;
 							}
@@ -520,6 +492,10 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					}
 
 					currentNode = childNode;
+
+					auto t2 = std::chrono::high_resolution_clock::now();
+					auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+					//std::cout << "One loop: " << duration << std::endl;
 				}
 
 				if (!c[P1 * N + P2])
@@ -528,18 +504,15 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					*c[P1 * N + P2] = currentNode;
 				}
 
-				if (c[P1 * N + P2]->Tmax >= optimal)
+				if (c[P1 * N + P2]->presentScore > optimal)
 				{
-					optimal = c[P1 * N + P2]->Tmax;
+					optimal = c[P1 * N + P2]->presentScore;
 				}
 
-				P1 = Seq1.size() - 1;
-				P2 = Seq2.size() - 1;
 				//If the greedy search has achieved the highest possible score
 				//then align
 				if (optimal == Fmax)
 				{
-					std::cout << "Expanded nodes: " << expanded << std::endl;
 					align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 					return;
 				}
@@ -547,19 +520,12 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				currentNode = hpqueue->getTop(maxPointer);
 				maxPointer = hpqueue->deleteTop(maxPointer);
 
-				if (maxPointer <= optimal)
+				if (maxPointer <= optimal || maxPointer == Fmin - 1)
 				{
-					std::cout << "this new case is called" << std::endl;
 					align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 					return;
 				}
 
-				if (maxPointer == Fmin - 1)
-				{
-					std::cout << "Expanded nodes: " << expanded << std::endl;
-					align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
-					return;
-				}
 				P1 = currentNode.P1;
 				P2 = currentNode.P2;
 				newTmax = currentNode.Tmax;
@@ -588,7 +554,6 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			} while (optimal < newTmax);
 		}
 
-		std::cout << "Expanded nodes: " << expanded << std::endl;
 		align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 	}
 
@@ -598,7 +563,8 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 		//<----- Backtrace from P1 and P2 using c[] align types ----->
 
-		std::cout << c[P1 * N + P2]->Tmax << std::endl;
+		score = c[P1 * N + P2]->presentScore;
+
 		while (P1 > 0 || P2 > 0)
 		{
 
@@ -607,8 +573,6 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			//Match or mismatch
 			if (type == AlignType::MM)
 			{
-				//std::cout << "Match/Mismatch" << std::endl;
-				//std::cout << "Aligning " << Seq1[P1 - 1] << " with " << Seq2[P2 - 1] << std::endl;
 
 				bool IsValidMatch = false;
 				if (Matches)
@@ -627,7 +591,6 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			//Gap in first sequence
 			else if (type == AlignType::_G)
 			{
-				//std::cout << "Gap in Seq1" << std::endl;
 				Data.push_front(
 					typename BaseType::EntryType(Blank, Seq2[P2 - 1], false));
 				P2--;
@@ -635,7 +598,6 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			//Gap in second sequence
 			else
 			{
-				//std::cout << "Gap in Seq2" << std::endl;
 				Data.push_front(
 					typename BaseType::EntryType(Seq1[P1 - 1], Blank, false));
 				P1--;
@@ -668,9 +630,21 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 	virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType &Seq1, ContainerType &Seq2)
 	{
 		AlignedSequence<Ty, Blank> Result;
+		//auto t1 = std::chrono::high_resolution_clock::now();
 		cacheAllMatches(Seq1, Seq2);
+		//auto t2 = std::chrono::high_resolution_clock::now();
+		//auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+		//std::cout << "caching: " << duration << std::endl;
+
+		//auto t3 = std::chrono::high_resolution_clock::now();
 		buildAlignment(Seq1, Seq2, Result);
+		//auto t4 = std::chrono::high_resolution_clock::now();
+		//duration = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
+		//std::cout << "building: " << duration << std::endl;
 		clearAll();
+
+		std::cout << "score: " << score << std::endl;
+		//std::cout << "Expanded nodes: " << expanded << std::endl;
 		return Result;
 	}
 };

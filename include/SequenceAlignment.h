@@ -190,5 +190,6 @@ public:
 #include "SABLAT.h"
 #include "SAGappedBLAT.h"
 #include "SAFOGSAA.h"
+#include "SuffixTree.h"
 
 #endif

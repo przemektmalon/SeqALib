@@ -166,7 +166,7 @@ private:
 
     int i = MatrixRows - 1, j = MatrixCols - 1;
 
-    std::cout << Matrix[(i)*MatrixCols + j] << std::endl;
+    std::cout << "score: " << Matrix[(i)*MatrixCols + j] << std::endl;
 
     while (i > 0 || j > 0)
     {

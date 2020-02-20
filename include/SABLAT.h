@@ -23,17 +23,15 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		int indexSeq1; //Index of the word on sequence 1
 		int indexSeq2; //Index of the word on sequence 2
 		int wordSize;
-		int maxScore;		//Maximum score achieved by the alignment
-		ContainerType word; //The word itself
+		int maxScore; //Maximum score achieved by the alignment
 
-		candidateWord *operator=(const candidateWord b)
+		candidateWord *operator=(const candidateWord &b)
 		{
 			this->score = b.score;
 			this->indexSeq1 = b.indexSeq1;
 			this->indexSeq2 = b.indexSeq2;
 			this->wordSize = b.wordSize;
 			this->maxScore = b.maxScore;
-			this->word = b.word;
 			return this;
 		}
 	};
@@ -86,17 +84,14 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		std::vector<candidateWord> words;
 		std::vector<candidateWord> candidateWords;
 
-		auto t1 = std::chrono::high_resolution_clock::now();
 		do
 		{
-			//For near-perfect matches use Match*k-1
-			initialThreshold = Match * (wordSize - 1);
+			//Perfect Matches
+			initialThreshold = Match * wordSize;
 
 			for (int i = 0; i < Seq1.size() - wordSize + 1; i++)
 			{
-				ContainerType word = Seq1.substr(i, wordSize);
 				candidateWord cWord;
-				cWord.word = word;
 				cWord.indexSeq1 = i;
 				cWord.wordSize = wordSize;
 				words.push_back(cWord);
@@ -111,10 +106,7 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 					for (int k = 0; k < wordSize; k++)
 					{
-
-						char wordChar = words[i].word[k];
-						ScoreSystemType Similarity = wordChar == Seq2[j + k] ? Match : Mismatch;
-
+						ScoreSystemType Similarity = BaseType::match(Seq1[words[i].indexSeq1 + k], Seq2[j + k]) ? Match : Mismatch;
 						score += Similarity;
 					}
 
@@ -142,10 +134,6 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			words.clear();
 		} while (candidateWords.size() == 0);
 
-		auto t2 = std::chrono::high_resolution_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
-		std::cout << "Time taken to get candidate words: " << duration << " microseconds";
-
 		//Begin expanding out the seeds in both directions
 		while (candidateWords.size() >= 1)
 		{
@@ -168,12 +156,11 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						int overlapSeq2Size = firstWord.indexSeq2 + firstWord.wordSize - secondWord.indexSeq2;
 						if (overlapSize != overlapSeq2Size)
 						{
-							i++;
+							//i++;
 							continue;
 						}
 
 						candidateWord mergedWord = firstWord;
-						mergedWord.word = mergedWord.word + secondWord.word.substr(overlapSize);
 
 						//re-calculate score, however, we already know word 1 score so to reduce time we only calculate score of the word 2 that is being added to
 						//word 1. Must be done since imperfect matches prevents us from simply multiplying a match score with the number of characters being added
@@ -181,8 +168,10 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						int mergedWordSize = mergedWord.wordSize + secondWord.wordSize - (firstWord.indexSeq1 + firstWord.wordSize - secondWord.indexSeq1);
 						for (int j = mergedWord.wordSize; j < mergedWordSize; j++)
 						{
-							char wordChar = mergedWord.word[j];
-							ScoreSystemType Similarity = wordChar == Seq2[mergedWord.indexSeq2 + mergedWord.wordSize] ? Match : Mismatch;
+
+							ScoreSystemType Similarity = BaseType::match(Seq1[mergedWord.indexSeq1 + j], Seq2[mergedWord.indexSeq2 + mergedWord.wordSize]) ? Match : Mismatch;
+							//char wordChar = mergedWord.word[j];
+							//ScoreSystemType Similarity = wordChar == Seq2[mergedWord.indexSeq2 + mergedWord.wordSize] ? Match : Mismatch;
 							mergedWord.score += Similarity;
 						}
 
@@ -196,8 +185,15 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					//Separate else if for efficiency's sake
 					else if (firstWord.indexSeq1 + firstWord.wordSize == secondWord.indexSeq1)
 					{
+
+						int overlapSize = firstWord.indexSeq1 + firstWord.wordSize - secondWord.indexSeq1;
+						int overlapSeq2Size = firstWord.indexSeq2 + firstWord.wordSize - secondWord.indexSeq2;
+
+						if (overlapSize != overlapSeq2Size)
+						{
+							continue;
+						}
 						candidateWord mergedWord = firstWord;
-						mergedWord.word = mergedWord.word + secondWord.word;
 						mergedWord.wordSize = mergedWord.wordSize + secondWord.wordSize;
 						mergedWord.score = mergedWord.score + secondWord.score;
 						newCandidates[i - 1] = mergedWord;
@@ -213,8 +209,8 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				int leftIndex = newCandidates[i].indexSeq1 - 1;
 				if (leftIndex >= 0)
 				{ //We can expand left
-					char leftChar = Seq1[leftIndex];
-					newCandidates[i].word = leftChar + newCandidates[i].word;
+					//char leftChar = Seq1[leftIndex];
+					//newCandidates[i].word = leftChar + newCandidates[i].word;
 					newCandidates[i].indexSeq1--;
 					newCandidates[i].indexSeq2--;
 					newCandidates[i].wordSize++;
@@ -227,13 +223,12 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					}
 					else
 					{
-						Similarity = leftChar == Seq2[newCandidates[i].indexSeq2] ? Match : Mismatch;
+						Similarity = BaseType::match(Seq1[leftIndex], Seq2[newCandidates[i].indexSeq2]) ? Match : Mismatch;
 					}
 
 					//A detremental expansion so revert
 					if (newCandidates[i].score + Similarity < newCandidates[i].score)
 					{
-						newCandidates[i].word = newCandidates[i].word.substr(1, newCandidates[i].word.size());
 						newCandidates[i].indexSeq1++;
 						newCandidates[i].indexSeq2++;
 						newCandidates[i].wordSize--;
@@ -248,8 +243,8 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				int rightIndex = newCandidates[i].indexSeq1 + newCandidates[i].wordSize; //Plus wordSize as we index points towards start of word
 				if (rightIndex <= Seq1.size())
 				{
-					char rightChar = Seq1[rightIndex];
-					newCandidates[i].word = newCandidates[i].word + rightChar;
+					//char rightChar = Seq1[rightIndex];
+					//newCandidates[i].word = newCandidates[i].word + rightChar;
 					newCandidates[i].wordSize++;
 
 					ScoreSystemType Similarity;
@@ -260,13 +255,12 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					}
 					else
 					{
-						Similarity = rightChar == Seq2[newCandidates[i].indexSeq2 + newCandidates[i].wordSize - 1] ? Match : Mismatch;
+						Similarity = BaseType::match(Seq1[rightIndex], Seq2[newCandidates[i].indexSeq2 + newCandidates[i].wordSize - 1]) ? Match : Mismatch;
 					}
 
 					//A detremental expansion so revert
 					if (newCandidates[i].score + Similarity < newCandidates[i].score)
 					{
-						newCandidates[i].word = newCandidates[i].word.substr(0, newCandidates[i].word.size() - 1);
 						newCandidates[i].wordSize--;
 					}
 					else
@@ -311,7 +305,6 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		}
 
 		//Build alignment
-		int j = 0;
 		if (switched)
 		{
 			ContainerType temp = Seq1;
@@ -322,15 +315,12 @@ class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			candidateWords[0].indexSeq1 = tempIndex;
 		}
 
-		for (int i = candidateWords[0].indexSeq2; i < candidateWords[0].indexSeq2 + candidateWords[0].wordSize; i++)
+		for (int i = 0; i < candidateWords[0].wordSize; i++)
 		{
-
-			bool isValidMatch = candidateWords[0].word[j] == Seq2[i];
+			bool isValidMatch = BaseType::match(Seq1[candidateWords[0].indexSeq1 + i], Seq2[candidateWords[0].indexSeq2 + i]);
 
 			Data.push_back(
-				typename BaseType::EntryType(candidateWords[0].word[j], Seq2[i], isValidMatch));
-
-			j++;
+				typename BaseType::EntryType(Seq1[candidateWords[0].indexSeq1 + i], Seq2[candidateWords[0].indexSeq2 + i], isValidMatch));
 		}
 	}
 

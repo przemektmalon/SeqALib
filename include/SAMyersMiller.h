@@ -15,11 +15,12 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 	const ScoreSystemType Mismatch = AllowMismatch
 										 ? Scoring.getMismatchPenalty()
 										 : std::numeric_limits<ScoreSystemType>::min();
-	const float GapOpen = (float)Scoring.getGapOpenPenalty();
-	const float GapExtend = (float)Scoring.getGapExtendPenalty();
+	const ScoreSystemType GapOpen = Scoring.getGapOpenPenalty();
+	const ScoreSystemType GapExtend = Scoring.getGapExtendPenalty();
 
 	//Save all the matches to memory
-	bool *cacheAllMatches(ContainerType &Seq1, ContainerType &Seq2)
+	template <typename ArrayType>
+	bool *cacheAllMatches(ArrayType &Seq1, ArrayType &Seq2)
 	{
 		bool *Matches = nullptr;
 		if (BaseType::getMatchOperation() == nullptr)
@@ -195,7 +196,8 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 	}
 
 	//Build the resulting aligned sequence
-	void buildResultRec(ContainerType &Seq1, ContainerType &Seq2, AlignedSequence<Ty, Blank> &Result, int M, int N, float tb, float te)
+	template <typename ArrayType>
+	void buildResultRec(ArrayType &Seq1, ArrayType &Seq2, AlignedSequence<Ty, Blank> &Result, int M, int N, int tb, int te)
 	{
 
 		//Because of recursive nature and sequences being shortened
@@ -230,25 +232,43 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 		}
 		else if (M == 1)
 		{
-			//gap(k) = 2 + 0.5k
-			float max = std::max(tb, te) + GapExtend + (GapExtend * N);
-			float maxLoop = -100000;
+			int max = std::max(tb, te) + GapExtend + (GapOpen + (GapExtend * N));
+			int maxLoop = std::numeric_limits<int>::min();
 			int index = 0;
 
 			for (int j = 1; j < N + 1; j++)
 			{
-
 				ScoreSystemType Similarity;
-				/*if (Matches != false) {
-						Similarity = Matches[MatchesCols + j - 1] ? Match : Mismatch;
+				bool isMatch = false;
+
+				if (Matches)
+				{
+					Similarity = Matches[j - 1] ? Match : Mismatch;
+					isMatch = Matches[j - 1];
+				}
+				else
+				{
+					Similarity = Seq1[0] == Seq2[j - 1] ? Match : Mismatch;
+					isMatch = Seq1[0] == Seq2[j - 1];
+				}
+
+				int maxTemp;
+
+				if (AllowMismatch)
+				{
+					maxTemp = std::max(GapOpen + (GapExtend * (j - 1)) + Similarity + GapOpen + (GapExtend * (N - j)), max);
+				}
+				else
+				{
+					if (isMatch)
+					{
+						maxTemp = std::max(GapOpen + (GapExtend * (j - 1)) + Similarity + GapOpen + (GapExtend * (N - j)), max);
 					}
-					else {
-						Similarity = Seq1[0] == Seq2[j] ? Match : Mismatch;
-					}*/
-
-				Similarity = Seq1[0] == Seq2[j - 1] ? Match : Mismatch;
-
-				float maxTemp = std::max(GapOpen + (GapExtend * (j - 1)) + Similarity + GapOpen + (GapExtend * (N - j)), max);
+					else
+					{
+						maxTemp = max;
+					}
+				}
 
 				if (maxTemp > maxLoop)
 				{
@@ -262,10 +282,26 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 				if (i == index)
 				{
 
-					bool isValidMatch = Seq1[0] == Seq2[i - 1];
+					bool isValidMatch;
+					if (Matches)
+					{
+						isValidMatch = Matches[i - 1];
+					}
+					else
+					{
+						isValidMatch = Seq1[0] == Seq2[i - 1];
+					}
 
-					Data.push_back(
-						typename BaseType::EntryType(Seq1[0], Seq2[i - 1], isValidMatch));
+					//this shouldn't happen but a failsafe
+					if (!AllowMismatch && !isValidMatch)
+					{
+						Data.push_back(typename BaseType::EntryType(Seq1[0], Blank, false));
+						Data.push_back(typename BaseType::EntryType(Blank, Seq2[i - 1], false));
+					}
+					else
+					{
+						Data.push_back(typename BaseType::EntryType(Seq1[0], Seq2[i - 1], isValidMatch));
+					}
 				}
 				else
 				{
@@ -280,18 +316,18 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 			int mid = (int)(M / 2);
 
 			//Find maximum path scores from (i1, j1)
-			float *CC = new float[N + 1];
-			float *DD = new float[N + 1];
-			float s = 0;
-			float c = 0;
+			int *CC = new int[N + 1];
+			int *DD = new int[N + 1];
+			int s = 0;
+			int c = 0;
 
 			CC[0] = 0;
 
 			int g = GapOpen;
-			float h = GapExtend;
+			int h = GapExtend;
 
-			float t = 0;
-			float e = 0;
+			int t = 0;
+			int e = 0;
 
 			t = g;
 
@@ -317,8 +353,34 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 				{
 					e = std::max(e, c + g) + h;
 					DD[j] = std::max(DD[j], CC[j] + g) + h;
-					ScoreSystemType Similarity = Matches[(i - 1) * MatchesCols + j - 1] ? Match : Mismatch;
-					c = std::max({DD[j], e, s + Similarity});
+					ScoreSystemType Similarity;
+					bool isMatch = false;
+					if (Matches)
+					{
+						Similarity = Matches[(i - 1) * MatchesCols + j - 1] ? Match : Mismatch;
+						isMatch = Matches[(i - 1) * MatchesCols + j - 1];
+					}
+					else
+					{
+						Similarity = Seq1[i - 1] == Seq2[j - 1] ? Match : Mismatch;
+						isMatch = Seq1[i - 1] == Seq2[j - 1];
+					}
+
+					if (AllowMismatch)
+					{
+						c = std::max({DD[j], e, s + Similarity});
+					}
+					else
+					{
+						if (isMatch)
+						{
+							c = std::max({DD[j], e, s + Similarity});
+						}
+						else
+						{
+							c = std::max({DD[j], e, Similarity});
+						}
+					}
 					s = CC[j];
 					CC[j] = c;
 				}
@@ -328,8 +390,8 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 
 			//Find maximum path scores to (i2, j2)
 
-			float *RR = new float[N + 1];
-			float *SS = new float[N + 1];
+			int *RR = new int[N + 1];
+			int *SS = new int[N + 1];
 			s = 0;
 			c = 0;
 
@@ -365,8 +427,35 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 				{
 					e = std::max(e, c + g) + h;
 					SS[j] = std::max(SS[j], RR[j] + g) + h;
-					ScoreSystemType Similarity = Matches[(i + 1) * MatchesCols + j] ? Match : Mismatch;
-					c = std::max({SS[j], e, s + Similarity});
+					ScoreSystemType Similarity;
+					bool isMatch = false;
+					if (Matches)
+					{
+						Similarity = Matches[(i + 1) * MatchesCols + j] ? Match : Mismatch;
+						isMatch = Matches[(i + 1) * MatchesCols + j];
+					}
+					else
+					{
+						Similarity = Seq1[i + 1] == Seq2[j] ? Match : Mismatch;
+						isMatch = Seq1[i + 1] == Seq2[j];
+					}
+
+					if (AllowMismatch)
+					{
+						c = std::max({SS[j], e, s + Similarity});
+					}
+					else
+					{
+						if (isMatch)
+						{
+							c = std::max({SS[j], e, s + Similarity});
+						}
+						else
+						{
+							c = std::max({SS[j], e, Similarity});
+						}
+					}
+
 					s = RR[j];
 					RR[j] = c;
 				}
@@ -376,12 +465,12 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 
 			//Find where maximum score path crosses row mid
 			int index = 0;
-			float max = -10000000;
+			int max = std::numeric_limits<int>::min();
 			bool type = false; //False = type 1 midpoint
 							   //True = type 2
 			for (int j = 0; j < N + 1; j++)
 			{
-				float temp = 0;
+				int temp = 0;
 
 				temp = std::max(CC[j] + RR[j], DD[j] + SS[j] - g);
 
@@ -420,10 +509,15 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 			if (!type)
 			{ //If a type 1 midpoint
 				//Recurse on the newfound indices
-				std::string newSeq1 = Seq1.substr(0, mid);
-				std::string newSeq2 = Seq2.substr(0, index);
-				std::string newSeq1Temp = Seq1.substr(mid, Seq1.size());
-				std::string newSeq2Temp = Seq2.substr(index, Seq2.size());
+				ArrayType newSeq1(Seq1);
+				newSeq1.sliceWindow(0, mid);
+				ArrayType newSeq2(Seq2);
+				newSeq2.sliceWindow(0, index);
+
+				ArrayType newSeq1Temp(Seq1);
+				newSeq1Temp.sliceWindow(mid, Seq1.size());
+				ArrayType newSeq2Temp(Seq2);
+				newSeq2Temp.sliceWindow(index, Seq2.size());
 
 				buildResultRec(newSeq1, newSeq2, Result, mid, index, tb, g);
 				buildResultRec(newSeq1Temp, newSeq2Temp, Result, M - mid, N - index, g, te);
@@ -431,10 +525,15 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 			else
 			{ //If a type 2 midpoint
 				//Recurse on the newfound indices
-				std::string newSeq1 = Seq1.substr(0, mid - 1);
-				std::string newSeq2 = Seq2.substr(0, index);
-				std::string newSeq1Temp = Seq1.substr(mid + 1, Seq1.size());
-				std::string newSeq2Temp = Seq2.substr(index, Seq2.size());
+				ArrayType newSeq1(Seq1);
+				newSeq1.sliceWindow(0, mid - 1);
+				ArrayType newSeq2(Seq2);
+				newSeq2.sliceWindow(0, index);
+
+				ArrayType newSeq1Temp(Seq1);
+				newSeq1Temp.sliceWindow(mid + 1, Seq1.size());
+				ArrayType newSeq2Temp(Seq2);
+				newSeq2Temp.sliceWindow(index, Seq2.size());
 
 				buildResultRec(newSeq1, newSeq2, Result, mid - 1, index, tb, 0);
 				//Write delete ai* ai*+1
@@ -467,9 +566,9 @@ class MyersMillerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy
 	virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType &Seq1, ContainerType &Seq2)
 	{
 		AlignedSequence<Ty, Blank> Result;
-		//cacheAllMatches(Seq1,Seq2);
-		//computeScoreVectors(Seq1,Seq2, 0);
-		buildResultRec(Seq1, Seq2, Result, Seq1.size(), Seq2.size(), GapOpen, GapOpen);
+		ArrayView<ContainerType> View1(Seq1);
+		ArrayView<ContainerType> View2(Seq2);
+		buildResultRec(View1, View2, Result, Seq1.size(), Seq2.size(), GapOpen, GapOpen);
 		clearAll();
 		return Result;
 	}
