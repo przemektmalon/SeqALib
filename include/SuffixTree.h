@@ -51,6 +51,7 @@ class SuffixTree
     SuffixNode *root;
 
     ContainerType seq;
+    ContainerType alphabet;
 
     MatchFnTy match;
 

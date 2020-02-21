@@ -210,7 +210,6 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 		bool checkIndex(int index)
 		{
-
 			//Bad index so return false so maxPointer can be set to minimum
 			//This should be caught and the current best path is returned
 			if (index >= table->size() || index < 0)

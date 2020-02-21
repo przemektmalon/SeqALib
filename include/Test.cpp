@@ -43,8 +43,8 @@ int main(int argc, char **argv)
   //std::string seq2 = "AAAAGGGGTTTTCCCC";
   //std::string seq1 = "AAAA";
   //std::string seq2 = "AAAA";
-  std::string seq1 = "CTGAAGCGG";
-  std::string seq2 = "CTCAAGCGTAGTCC";
+  //std::string seq1 = "CTGAAGCGG";
+  //std::string seq2 = "CTCAAGCGTAGTCC";
   //std::string seq1 = "AGTAC";
   //std::string seq2 = "AAG";
   //std::string seq1 = "GGTCGCGACTACGTGAGCTAGGGCTCCGGACTGGGCTGTATAGTCGAGTC";
@@ -59,8 +59,8 @@ int main(int argc, char **argv)
   //std::string seq2 = "GACT";
   //std::string seq1 = "AAGG";
   //std::string seq2 = "AAGG";
-  //std::string seq1 = "AAGGGGGCAACCCAATTGTCAAAA";
-  //std::string seq2 = "AAGTTGGCGGCCCAAGCTGCGAAA";
+  std::string seq1 = "AAGGGGGCAACCCAATTGTCAAAA";
+  std::string seq2 = "AAGTTGGCGGCCCAAGCTGCGAAA";
   //std::string seq1 = "AAAGGGTTTCCCAAGGTTCCAGTC";
   //std::string seq2 = "AAAGGGTTTCCCAAGGCTCCAGTC";
 
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
   std::cout << "# BLAT: " << std::endl;
   printAlignment(BLATAlignment);
   std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
-  std::cout << "" << std::endl;
+  std::cout << "" << std::endl;*/
 
   auto t19 = std::chrono::high_resolution_clock::now();
   AlignedSequence<char, '-'> GappedBLATAlignment = GappedBLATSA<std::string, char, '-'>(scoringSystem, equal<char>).getAlignment(seq1, seq2);
@@ -163,7 +163,7 @@ int main(int argc, char **argv)
   std::cout << "# Gapped BLAT: " << std::endl;
   printAlignment(GappedBLATAlignment);
   std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
-  std::cout << "" << std::endl;*/
+  std::cout << "" << std::endl;
 
   /*SuffixTree<std::string, char, '-'> suffixTree;
   std::string seq = seq1 + "#" + seq2;

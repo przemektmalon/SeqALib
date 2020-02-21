@@ -43,6 +43,11 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		{
 			return indexSeq1 < b.indexSeq1;
 		}
+
+		bool operator<=(const candidateWord &b) const
+		{
+			return indexSeq1 <= b.indexSeq1;
+		}
 	};
 
 	//Build the alignment using the BLAST hueristic algorithm
@@ -155,10 +160,10 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			words.clear();
 		} while (candidateWords.size() == 0);
 
-		gapExpansionThreshold = (wordSize * Match) + (Match * log2(SizeSeq2));
-		std::cout << "Gap expansion threshold: " << gapExpansionThreshold << std::endl;
-		std::cout << "Wordsize: " << wordSize << std::endl;
-		std::cout << "Distance: " << distance << std::endl;
+		gapExpansionThreshold = (wordSize * Match) + (Match * log2(SizeSeq2)) - 5;
+		//std::cout << "Gap expansion threshold: " << gapExpansionThreshold << std::endl;
+		//std::cout << "Wordsize: " << wordSize << std::endl;
+		//std::cout << "Distance: " << distance << std::endl;
 
 		std::vector<candidateWord> completeWords;
 		std::vector<candidateWord> newCandidates = candidateWords;
@@ -318,8 +323,66 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			}
 		}
 
-		//Sort the HSPs by index so that they may be aligned
-		std::sort(completeWords.begin(), completeWords.end());
+		//<----- Longest Increasing Subsequence ----->
+		//Find the longest increasing subsequence of the complete words
+		//Important for smaller search space and overall score/usage of words
+		if (completeWords.size() != 1)
+		{
+			//Denoting X as completeWords
+			int P[completeWords.size()];
+			int M[completeWords.size() + 1];
+
+			int l = 0;
+			int lo = 0;
+			int hi = 0;
+			for (int i = 0; i < completeWords.size() - 1; i++)
+			{
+				//Binary search for the largest positive j <= l
+				//Such that X[M[j]] <= X[i]
+				lo = 1;
+				hi = l;
+				while (lo <= hi)
+				{
+					int mid = ceil((lo + hi) / 2);
+					if (completeWords[M[mid]] <= completeWords[i])
+					{
+						lo = mid + 1;
+					}
+					else
+					{
+						hi = mid - 1;
+					}
+				}
+
+				//After searching, lo is 1 greater than the length
+				//of the longest prefix of X[i]
+				int newL = lo;
+
+				//The predecessor of X[i] is the last index of
+				//the subsequence of length newL - 1
+				P[i] = M[newL - 1];
+				M[newL] = i;
+
+				//If we found a subsequence longer than any we've foudn yet
+				if (newL > l)
+				{
+					l = newL;
+				}
+			}
+
+			//Reconstruct the longest increasing subsequence
+			std::vector<candidateWord> newList;
+			newList.resize(l);
+			int k = M[l];
+			for (int i = l - 1; i >= 0; i--)
+			{
+				newList[i] = completeWords[k];
+				k = P[k];
+			}
+
+			completeWords.clear();
+			completeWords = newList;
+		}
 
 		//Build alignment
 		if (switched)
@@ -347,7 +410,6 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			//Align HSP
 			if (allowAlign)
 			{
-
 				for (int j = 0; j < completeWords[i].wordSize; j++)
 				{
 					bool isValidMatch = BaseType::match(Seq1[completeWords[i].indexSeq1 + j], Seq2[completeWords[i].indexSeq2 + j]);
@@ -374,10 +436,14 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				int indexSecondSeq1 = completeWords[i + 1].indexSeq1;
 				int indexSeq2 = recentWord.indexSeq2 + recentWord.wordSize;
 				int indexSecondSeq2 = completeWords[i + 1].indexSeq2;
-				NeedlemanWunschSA<std::string, char, '-'> SA(Scoring, BaseType::getMatchOperation());
-				std::string seq1Sub = Seq1.substr(indexSeq1, indexSecondSeq1 - indexSeq1);
-				std::string seq2Sub = Seq2.substr(indexSeq2, indexSecondSeq2 - indexSeq2);
-				AlignedSequence<char, '-'> NWAlignment = SA.getAlignment(seq1Sub, seq2Sub);
+				NeedlemanWunschSA<ArrayView<ContainerType>, Ty, Blank, MatchFnTy> SA(Scoring, BaseType::getMatchOperation());
+
+				ArrayView<ContainerType> seq1Sub(Seq1);
+				seq1Sub.sliceWindow(indexSeq1, indexSecondSeq1);
+				ArrayView<ContainerType> seq2Sub(Seq2);
+				seq2Sub.sliceWindow(indexSeq2, indexSecondSeq2);
+
+				AlignedSequence<Ty, Blank> NWAlignment = SA.getAlignment(seq1Sub, seq2Sub);
 				Data.insert(Data.end(), NWAlignment.begin(), NWAlignment.end());
 			}
 		}
