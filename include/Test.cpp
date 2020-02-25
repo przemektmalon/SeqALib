@@ -41,6 +41,8 @@ int main(int argc, char **argv)
   //std::string seq2 = "AAAAAAAAAAAAAAAGGGGGGGGGGGGGGGGGGGGTTTTTTTTTTTTTTTTTTCCCCCCCCCCCCCCCCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
   //std::string seq1 = "AAAAGGGGTTTTCCCC";
   //std::string seq2 = "AAAAGGGGTTTTCCCC";
+  //std::string seq1 = "AAAGGGTTTCCC";
+  //std::string seq2 = "AAAGGGTTTCCC";
   //std::string seq1 = "AAAA";
   //std::string seq2 = "AAAA";
   //std::string seq1 = "CTGAAGCGG";
@@ -145,7 +147,7 @@ int main(int argc, char **argv)
   std::cout << "# FOGSAA: " << std::endl;
   printAlignment(FOGSAAAlignment);
   std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
-  std::cout << "" << std::endl;
+  std::cout << "" << std::endl;*/
 
   auto t17 = std::chrono::high_resolution_clock::now();
   AlignedSequence<char, '-'> BLATAlignment = BLATSA<std::string, char, '-'>(scoringSystem, equal<char>).getAlignment(seq1, seq2);
@@ -154,7 +156,7 @@ int main(int argc, char **argv)
   std::cout << "# BLAT: " << std::endl;
   printAlignment(BLATAlignment);
   std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
-  std::cout << "" << std::endl;*/
+  std::cout << "" << std::endl;
 
   auto t19 = std::chrono::high_resolution_clock::now();
   AlignedSequence<char, '-'> GappedBLATAlignment = GappedBLATSA<std::string, char, '-'>(scoringSystem, equal<char>).getAlignment(seq1, seq2);
@@ -165,11 +167,21 @@ int main(int argc, char **argv)
   std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
   std::cout << "" << std::endl;
 
-  /*SuffixTree<std::string, char, '-'> suffixTree;
-  std::string seq = seq1 + "#" + seq2;
-  suffixTree.buildTree(seq, seq1.size() + 1, SA.getMatchOperation());
-  std::cout << "boutta print" << std::endl;
-  suffixTree.getLCS();*/
+  auto t21 = std::chrono::high_resolution_clock::now();
+  SuffixTree<std::string, char, '-'> suffixTree;
+  std::string seq = seq1 + "#" + seq2 + "$";
+  //std::string seq = "xabxba#babxba$";
+  //std::string seq = "seanathon#marathon$";
+  //std::string seq = "OldSite:GeeksforGeeks.org#NewSite:GeeksQuiz.com$";
+  //std::string seq = seq1 + "$";
+  //std::string seq = "abcabxabcd$";
+  suffixTree.buildTree(seq, seq1.size(), SA.getMatchOperation());
+  //std::cout << "boutta print" << std::endl;
+  auto t22 = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::microseconds>(t22 - t21).count();
+  std::cout << "# Suffix Tree: " << std::endl;
+  suffixTree.getLCS();
+  std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
 
   //std::getchar();
 

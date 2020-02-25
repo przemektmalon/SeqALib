@@ -42,6 +42,10 @@
         "typeinfo": "cpp",
         "utility": "cpp",
         "__config": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "atomic": "cpp",
+        "iomanip": "cpp",
+        "mutex": "cpp",
+        "system_error": "cpp"
     }
 }

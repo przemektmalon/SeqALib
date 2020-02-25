@@ -1,6 +1,7 @@
 
 // A C program to implement Ukkonen's Suffix Tree Construction
-// And find all locations of a pattern in string
+// Here we build generalized suffix tree for two strings
+// And then we find longest common substring of the two input strings
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -17,7 +18,7 @@ struct SuffixTreeNode
      node is connected to its parent node. Each edge will 
      connect two nodes,  one parent and one child, and 
      (start, end) interval of a given edge  will be stored 
-     in the child node. Let's say there are two nods A and B 
+     in the child node. Lets say there are two nods A and B 
      connected by an edge with indices (5, 8) then this 
      indices (5, 8) will be stored in node B. */
     int start;
@@ -33,7 +34,7 @@ typedef struct SuffixTreeNode Node;
 char text[100];    //Input string
 Node *root = NULL; //Pointer to root node
 
-/*lastNewNode will point to the newly created internal node, 
+/*lastNewNode will point to newly created internal node, 
   waiting for it's suffix link to be set, which might get 
   a new suffix link (other than root) in next extension of 
   same phase. lastNewNode will be set to NULL when last 
@@ -43,7 +44,7 @@ Node *root = NULL; //Pointer to root node
 Node *lastNewNode = NULL;
 Node *activeNode = NULL;
 
-/*activeEdge is represented as an input string character 
+/*activeEdge is represeted as input string character 
   index (not the character itself)*/
 int activeEdge = -1;
 int activeLength = 0;
@@ -55,6 +56,7 @@ int leafEnd = -1;
 int *rootEnd = NULL;
 int *splitEnd = NULL;
 int size = -1; //Length of input string
+int size1 = 0; //Size of 1st string
 
 Node *newNode(int start, int *end)
 {
@@ -127,15 +129,15 @@ void extendSuffixTree(int pos)
 
         // There is no outgoing edge starting with
         // activeEdge from activeNode
-        if (activeNode->children[activeEdge] == NULL)
+        if (activeNode->children] == NULL)
         {
             //Extension Rule 2 (A new leaf edge gets created)
-            activeNode->children[activeEdge] =
-                newNode(pos, &leafEnd);
+            activeNode->children] = 
+                                          newNode(pos, &leafEnd);
 
             /*A new leaf edge is created in above line starting 
-             from  an existing node (the current activeNode), and 
-             if there is any internal node waiting for its suffix 
+             from  an existng node (the current activeNode), and 
+             if there is any internal node waiting for it's suffix 
              link get reset, point the suffix link from that last 
              internal node to current activeNode. Then set lastNewNode 
              to NULL indicating no more node waiting for suffix link 
@@ -152,7 +154,7 @@ void extendSuffixTree(int pos)
         {
             // Get the next node at the end of edge starting
             // with activeEdge
-            Node *next = activeNode->children[activeEdge];
+            Node *next = activeNode->children];
             if (walkDown(next)) //Do walkdown
             {
                 //Start from next node (the new activeNode)
@@ -190,12 +192,12 @@ void extendSuffixTree(int pos)
 
             //New internal node
             Node *split = newNode(next->start, splitEnd);
-            activeNode->children[activeEdge] = split;
+            activeNode->children] = split;
 
             //New leaf coming out of new internal node
-            split->children[activeEdge] = newNode(pos, &leafEnd);
+            split->children] = newNode(pos, &leafEnd);
             next->start += activeLength;
-            split->children[activeEdge] = next;
+            split->children] = next;
 
             /*We got a new internal node here. If there is any 
               internal node created in last extensions of same 
@@ -237,8 +239,10 @@ void extendSuffixTree(int pos)
 void print(int i, int j)
 {
     int k;
-    for (k = i; k <= j; k++)
+    for (k = i; k <= j && text[k] != '#'; k++)
         printf("%c", text[k]);
+    if (k <= j)
+        printf("#");
 }
 
 //Print the suffix tree as well along with setting suffix index
@@ -253,7 +257,7 @@ void setSuffixIndexByDFS(Node *n, int labelHeight)
     {
         //Print the label on edge from parent to current node
         //Uncomment below line to print suffix tree
-        // print(n->start, *(n->end));
+        //print(n->start, *(n->end));
     }
     int leaf = 1;
     int i;
@@ -262,8 +266,8 @@ void setSuffixIndexByDFS(Node *n, int labelHeight)
         if (n->children[i] != NULL)
         {
             //Uncomment below two lines to print suffix index
-            // if (leaf == 1 && n->start != -1)
-            //   printf(" [%d]\n", n->suffixIndex);
+            //   if (leaf == 1 && n->start != -1)
+            //     printf(" [%d]\n", n->suffixIndex);
 
             //Current node is not a leaf as it has outgoing
             //edges from it.
@@ -274,9 +278,17 @@ void setSuffixIndexByDFS(Node *n, int labelHeight)
     }
     if (leaf == 1)
     {
+        for (i = n->start; i <= *(n->end); i++)
+        {
+            if (text[i] == '#')
+            {
+                n->end = (int *)malloc(sizeof(int));
+                *(n->end) = i;
+            }
+        }
         n->suffixIndex = size - labelHeight;
         //Uncomment below line to print suffix index
-        //printf(" [%d]\n", n->suffixIndex);
+        // printf(" [%d]\n", n->suffixIndex);
     }
 }
 
@@ -318,126 +330,114 @@ void buildSuffixTree()
     setSuffixIndexByDFS(root, labelHeight);
 }
 
-int traverseEdge(char *str, int idx, int start, int end)
-{
-    int k = 0;
-    //Traverse the edge with character by character matching
-    for (k = start; k <= end && str[idx] != '\0'; k++, idx++)
-    {
-        if (text[k] != str[idx])
-            return -1; // mo match
-    }
-    if (str[idx] == '\0')
-        return 1; // match
-    return 0;     // more characters yet to match
-}
-
-int doTraversalToCountLeaf(Node *n)
+int doTraversal(Node *n, int labelHeight, int *maxHeight,
+                int *substringStartIndex)
 {
     if (n == NULL)
-        return 0;
-    if (n->suffixIndex > -1)
     {
-        printf("\nFound at position: %d", n->suffixIndex);
-        return 1;
+        return;
     }
-    int count = 0;
     int i = 0;
-    for (i = 0; i < MAX_CHAR; i++)
+    int ret = -1;
+    if (n->suffixIndex < 0) //If it is internal node
     {
-        if (n->children[i] != NULL)
+        for (i = 0; i < MAX_CHAR; i++)
         {
-            count += doTraversalToCountLeaf(n->children[i]);
+            if (n->children[i] != NULL)
+            {
+                ret = doTraversal(n->children[i], labelHeight + edgeLength(n->children[i]),
+                                  maxHeight, substringStartIndex);
+
+                if (n->suffixIndex == -1)
+                    n->suffixIndex = ret;
+                else if ((n->suffixIndex == -2 && ret == -3) ||
+                         (n->suffixIndex == -3 && ret == -2) ||
+                         n->suffixIndex == -4)
+                {
+                    n->suffixIndex = -4; //Mark node as XY
+                    //Keep track of deepest node
+                    if (*maxHeight < labelHeight)
+                    {
+                        *maxHeight = labelHeight;
+                        *substringStartIndex = *(n->end) -
+                                               labelHeight + 1;
+                    }
+                }
+            }
         }
     }
-    return count;
+    else if (n->suffixIndex > -1 && n->suffixIndex < size1) //suffix of X
+        return -2;                                          //Mark node as X
+    else if (n->suffixIndex >= size1)                       //suffix of Y
+        return -3;                                          //Mark node as Y
+    return n->suffixIndex;
 }
 
-int countLeaf(Node *n)
+void getLongestCommonSubstring()
 {
-    if (n == NULL)
-        return 0;
-    return doTraversalToCountLeaf(n);
-}
+    int maxHeight = 0;
+    int substringStartIndex = 0;
+    doTraversal(root, 0, &maxHeight, &substringStartIndex);
 
-int doTraversal(Node *n, char *str, int idx)
-{
-    if (n == NULL)
-    {
-        return -1; // no match
-    }
-    int res = -1;
-    //If node n is not root node, then traverse edge
-    //from node n's parent to node n.
-    if (n->start != -1)
-    {
-        res = traverseEdge(str, idx, n->start, *(n->end));
-        if (res == -1) //no match
-            return -1;
-        if (res == 1) //match
-        {
-            if (n->suffixIndex > -1)
-                printf("\nsubstring count: 1 and position: %d",
-                       n->suffixIndex);
-            else
-                printf("\nsubstring count: %d", countLeaf(n));
-            return 1;
-        }
-    }
-    //Get the character index to search
-    idx = idx + edgeLength(n);
-    //If there is an edge from node n going out
-    //with current character str[idx], traverse that edge
-    if (n->children[str[idx]] != NULL)
-        return doTraversal(n->children[str[idx]], str, idx);
+    int k;
+    for (k = 0; k < maxHeight; k++)
+        printf("%c", text[k + substringStartIndex]);
+    if (k == 0)
+        printf("No common substring");
     else
-        return -1; // no match
-}
-
-void checkForSubString(char *str)
-{
-    int res = doTraversal(root, str, 0);
-    if (res == 1)
-        printf("\nPattern <%s> is a Substring\n", str);
-    else
-        printf("\nPattern <%s> is NOT a Substring\n", str);
+        printf(", of length: %d", maxHeight);
+    printf("\n");
 }
 
 // driver program to test above functions
 int main(int argc, char *argv[])
 {
-    strcpy(text, "GEEKSFORGEEKS$");
+    size1 = 7;
+    printf("Longest Common Substring in xabxac and abcabxabcd is: ");
+    strcpy(text, "xabxac#abcabxabcd$");
     buildSuffixTree();
-    printf("Text: GEEKSFORGEEKS, Pattern to search: GEEKS");
-    checkForSubString("GEEKS");
-    printf("\n\nText: GEEKSFORGEEKS, Pattern to search: GEEK1");
-    checkForSubString("GEEK1");
-    printf("\n\nText: GEEKSFORGEEKS, Pattern to search: FOR");
-    checkForSubString("FOR");
+    getLongestCommonSubstring();
     //Free the dynamically allocated memory
     freeSuffixTreeByPostOrder(root);
 
-    strcpy(text, "AABAACAADAABAAABAA$");
+    size1 = 10;
+    printf("Longest Common Substring in xabxaabxa and babxba is: ");
+    strcpy(text, "xabxaabxa#babxba$");
     buildSuffixTree();
-    printf("\n\nText: AABAACAADAABAAABAA, Pattern to search: AABA");
-    checkForSubString("AABA");
-    printf("\n\nText: AABAACAADAABAAABAA, Pattern to search: AA");
-    checkForSubString("AA");
-    printf("\n\nText: AABAACAADAABAAABAA, Pattern to search: AAE");
-    checkForSubString("AAE");
+    getLongestCommonSubstring();
     //Free the dynamically allocated memory
     freeSuffixTreeByPostOrder(root);
 
-    strcpy(text, "AAAAAAAAA$");
+    size1 = 14;
+    printf("Longest Common Substring in GeeksforGeeks and GeeksQuiz is: ");
+    strcpy(text, "GeeksforGeeks#GeeksQuiz$");
     buildSuffixTree();
-    printf("\n\nText: AAAAAAAAA, Pattern to search: AAAA");
-    checkForSubString("AAAA");
-    printf("\n\nText: AAAAAAAAA, Pattern to search: AA");
-    checkForSubString("AA");
-    printf("\n\nText: AAAAAAAAA, Pattern to search: A");
-    checkForSubString("A");
-    printf("\n\nText: AAAAAAAAA, Pattern to search: AB");
-    checkForSubString("AB");
+    getLongestCommonSubstring();
+    //Free the dynamically allocated memory
+    freeSuffixTreeByPostOrder(root);
+
+    size1 = 26;
+    printf("Longest Common Substring in OldSite:GeeksforGeeks.org");
+    printf(" and NewSite:GeeksQuiz.com is: ");
+    strcpy(text, "OldSite:GeeksforGeeks.org#NewSite:GeeksQuiz.com$");
+    buildSuffixTree();
+    getLongestCommonSubstring();
+    //Free the dynamically allocated memory
+    freeSuffixTreeByPostOrder(root);
+
+    size1 = 6;
+    printf("Longest Common Substring in abcde and fghie is: ");
+    strcpy(text, "abcde#fghie$");
+    buildSuffixTree();
+    getLongestCommonSubstring();
+    //Free the dynamically allocated memory
+    freeSuffixTreeByPostOrder(root);
+
+    size1 = 6;
+    printf("Longest Common Substring in pqrst and uvwxyz is: ");
+    strcpy(text, "pqrst#uvwxyz$");
+    buildSuffixTree();
+    getLongestCommonSubstring();
     //Free the dynamically allocated memory
     freeSuffixTreeByPostOrder(root);
 
