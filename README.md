@@ -15,8 +15,7 @@ The algorithms currently provided by SeqALib are:
 * [Gapped BLAST (pairwise)](https://academic.oup.com/nar/article/25/17/3389/1061651)
 * [FOGSAA](https://www.nature.com/articles/srep01746)
 * [MUMMER](http://mummer.sourceforge.net/MUMmer.pdf)
-
-*Suffix Trees too
+* [Suffix Trees](https://en.wikipedia.org/wiki/Suffix_tree)
 
 AUTHOR: Rodrigo Rocha and Sean Stirling
 
