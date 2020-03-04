@@ -94,6 +94,13 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 				Fmax = (x1 * Match) + (Gap * (x2 - x1));
 			}
 
+			int Ftemp = (x2 * Gap) + (x1 * Gap);
+
+			if (!AllowMismatch)
+			{
+				Fmin = Ftemp;
+			}
+
 			//Add Present score to the Future score
 			//obtaining the fitness score
 			Tmin = presentScore + Fmin;
@@ -246,6 +253,11 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		for (unsigned i = 0; i < SizeSeq1; i++)
 			for (unsigned j = 0; j < SizeSeq2; j++)
 				Matches[i * SizeSeq2 + j] = BaseType::match(Seq1[i], Seq2[j]);
+
+		for (int i = 0; i < (SizeSeq1 + 1) * (SizeSeq2 + 1) + 2; i++)
+		{
+			c[i] = nullptr;
+		}
 	}
 
 	//Build the resulting aligned sequence
@@ -281,13 +293,15 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			Fmin = (x1 * Mismatch) + (Gap * (x2 - x1));
 			Fmax = (x1 * Match) + (Gap * (x2 - x1));
 		}
+		int Ftemp = (M * Gap) + (N * Gap);
 
-		int Ftemp = (Seq1.size() * Gap) + (Seq2.size() * Gap);
-
-		if (Fmin > Ftemp)
+		if (Fmin > Ftemp || !AllowMismatch)
 		{
 			Fmin = Ftemp;
 		}
+
+		currentNode.Tmax = Fmax;
+		currentNode.Tmin = Fmin;
 
 		int ml, sl, th;
 		if (M > N)
@@ -312,14 +326,14 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 		int pathend = 0;
 
-		//std::cout << M << " " << N << std::endl;
+		bool oneLoop = false;
+
 		if (M != 0 && N != 0)
 		{
 			do
 			{
 				while (P1 <= (M - 1) || P2 <= (N - 1))
 				{
-
 					auto t1 = std::chrono::high_resolution_clock::now();
 
 					if (!c[P1 * N + P2])
@@ -335,8 +349,9 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 						currentNode = hpqueue->getTop(maxPointer);
 						maxPointer = hpqueue->deleteTop(maxPointer);
 
-						if (maxPointer <= optimal || maxPointer == Fmin - 1)
+						if ((maxPointer <= optimal || maxPointer == Fmin - 1) && oneLoop == true)
 						{
+
 							align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 							return;
 						}
@@ -358,11 +373,11 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					bool IsValidMatch = false;
 					if (Matches)
 					{
-						IsValidMatch = Matches[(P1)*N + P2];
+						IsValidMatch = Matches[P1 * N + P2];
 					}
 					else
 					{
-						IsValidMatch = (Seq1[P1] == Seq2[P2]);
+						IsValidMatch = (BaseType::match(Seq1[P1], Seq2[P2]));
 					}
 
 					Node MMNode;
@@ -370,10 +385,46 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					Node G_Node;
 					Node childNode;
 
-					int Similarity = IsValidMatch ? Match : Mismatch;
-					MMNode.presentScore = currentNode.presentScore + Similarity;
+					ScoreSystemType Similarity;
+					if (AllowMismatch)
+					{
+						Similarity = IsValidMatch ? Match : Mismatch;
+						MMNode.presentScore = currentNode.presentScore + Similarity;
+
+						//Integer Underflow
+						if (currentNode.presentScore < 0 && Similarity < 0 && MMNode.presentScore > 0)
+						{
+							MMNode.presentScore = std::numeric_limits<int>::min() + 1;
+						}
+					}
+					else
+					{
+						if (IsValidMatch)
+						{
+							Similarity = Match;
+							MMNode.presentScore = currentNode.presentScore + Similarity;
+							//Integer Underflow
+							if (currentNode.presentScore < 0 && Similarity < 0 && MMNode.presentScore > 0)
+							{
+								MMNode.presentScore = std::numeric_limits<int>::min() + 1;
+							}
+						}
+						else
+						{
+							Similarity = Mismatch;
+							MMNode.presentScore = Similarity;
+						}
+					}
+
 					_GNode.presentScore = currentNode.presentScore + Gap;
 					G_Node.presentScore = currentNode.presentScore + Gap;
+
+					//Integer Underflow
+					if (currentNode.presentScore < 0 && Gap < 0 && _GNode.presentScore > 0)
+					{
+						_GNode.presentScore = std::numeric_limits<int>::min() + 1;
+						G_Node.presentScore = std::numeric_limits<int>::min() + 1;
+					}
 
 					MMNode.calculateScores(P1 + 1, P2 + 1, M, N, AlignType::MM, Scoring);
 					_GNode.calculateScores(P1, P2 + 1, M, N, AlignType::_G, Scoring);
@@ -457,11 +508,12 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
 					if (childNode.presentScore <= c[P1 * N + P2]->presentScore)
 					{
+
 						//Prune the current branch
 						childNode = hpqueue->getTop(maxPointer);
 						maxPointer = hpqueue->deleteTop(maxPointer);
 
-						if (maxPointer <= optimal || maxPointer == Fmin - 1)
+						if (maxPointer <= optimal || maxPointer == Fmin - 1 && oneLoop)
 						{
 							align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 							return;
@@ -472,7 +524,6 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					}
 					else
 					{
-
 						*c[P1 * N + P2] = childNode;
 						if (childNode.Tmax < optimal)
 						{
@@ -480,7 +531,7 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 							childNode = hpqueue->getTop(maxPointer);
 							maxPointer = hpqueue->deleteTop(maxPointer);
 
-							if (maxPointer <= optimal || maxPointer == Fmin - 1)
+							if (maxPointer <= optimal || maxPointer == Fmin - 1 && oneLoop)
 							{
 								align(Seq1.size(), Seq2.size(), Seq1, Seq2, Result);
 								return;
@@ -496,6 +547,8 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 					auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
 					//std::cout << "One loop: " << duration << std::endl;
 				}
+
+				oneLoop = true;
 
 				if (!c[P1 * N + P2])
 				{

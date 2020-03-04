@@ -165,6 +165,7 @@ private:
                                          : std::numeric_limits<ScoreSystemType>::min();
 
     int i = MatrixRows - 1, j = MatrixCols - 1;
+    //std::cout << "score: " << Matrix[i * MatchesCols + j] << std::endl;
 
     while (i > 0 || j > 0)
     {
