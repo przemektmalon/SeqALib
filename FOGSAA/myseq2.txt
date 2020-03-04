@@ -1,2 +1,0 @@
->seq_92193 6 bp
-AGCGTC

@@ -1,2 +1,0 @@
->seq_92188 8 bp
-ACGGTTGC
