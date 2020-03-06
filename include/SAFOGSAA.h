@@ -694,8 +694,6 @@ class FOGSAASA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		//duration = std::chrono::duration_cast<std::chrono::microseconds>(t4 - t3).count();
 		//std::cout << "building: " << duration << std::endl;
 		clearAll();
-
-		std::cout << "score: " << score << std::endl;
 		//std::cout << "Expanded nodes: " << expanded << std::endl;
 		return Result;
 	}

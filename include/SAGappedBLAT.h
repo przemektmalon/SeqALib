@@ -19,37 +19,6 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 										 ? Scoring.getMismatchPenalty()
 										 : std::numeric_limits<ScoreSystemType>::min();
 
-	struct candidateWord
-	{
-		int score;	 //Score of the word
-		int indexSeq1; //Index of the word on sequence 1
-		int indexSeq2; //Index of the word on sequence 2
-		int wordSize;
-		int maxScore; //Maximum score achieved by the alignment
-		bool saved = false;
-
-		candidateWord *operator=(const candidateWord b)
-		{
-			this->score = b.score;
-			this->indexSeq1 = b.indexSeq1;
-			this->indexSeq2 = b.indexSeq2;
-			this->wordSize = b.wordSize;
-			this->maxScore = b.maxScore;
-			this->saved = b.saved;
-			return this;
-		}
-
-		bool operator<(const candidateWord &b) const
-		{
-			return indexSeq1 < b.indexSeq1;
-		}
-
-		bool operator<=(const candidateWord &b) const
-		{
-			return indexSeq1 <= b.indexSeq1;
-		}
-	};
-
 	//Build the alignment using the BLAST hueristic algorithm
 	void buildAlignment(ContainerType &Seq1, ContainerType &Seq2, AlignedSequence<Ty, Blank> &Result)
 	{
@@ -107,10 +76,52 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			switched = true;
 		}
 
-		//Find words of sequence 1
+		//Find candidate words by pattern matching
 		std::vector<candidateWord> words;
 		std::vector<candidateWord> candidateWords;
 		do
+		{
+			SuffixTree<ContainerType, Ty, Blank> suffixTree;
+
+			suffixTree.buildTree(Seq1, BaseType::getMatchOperation());
+			initialThreshold = Match * wordSize;
+
+			//Create non-overlapping patterns
+			//And compare each pattern to suffix tree to find seeds
+			for (int i = 0; i < Seq2.size() - wordSize + 1; i = i + wordSize)
+			{
+				//std::string string = Seq2.substr(i, wordSize);
+				//std::cout << "PATTERN MATCHING: " << string << std::endl;
+				ArrayView<ContainerType> pattern(Seq2);
+				pattern.sliceWindow(i, i + wordSize);
+				std::vector<candidateWord> patternMatches = suffixTree.getCandidates(pattern);
+				for (int j = 0; j < patternMatches.size(); j++)
+				{
+					//std::string stringa = Seq1.substr(patternMatches[j].indexSeq1, wordSize);
+
+					//std::cout << "A candidate: " << stringa << std::endl;
+					patternMatches[j].indexSeq2 = i;
+					patternMatches[j].score = Match * wordSize;
+					patternMatches[j].wordSize = wordSize;
+					candidateWords.push_back(patternMatches[j]);
+				}
+				//std::cout << std::endl;
+			}
+
+			if (candidateWords.size() == 0)
+			{
+				wordSize = (int)wordSize * 3 / 4;
+
+				if (wordSize <= 0)
+				{
+					return;
+				}
+			}
+
+			words.clear();
+			suffixTree.deleteTree();
+		} while (candidateWords.size() == 0);
+		/*do
 		{
 			initialThreshold = Match * wordSize;
 
@@ -158,7 +169,15 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			}
 
 			words.clear();
-		} while (candidateWords.size() == 0);
+		} while (candidateWords.size() == 0);*/
+		/*for (int i = 0; i < candidateWords.size(); i++)
+		{
+			std::string stringa = Seq1.substr(candidateWords[i].indexSeq1, wordSize);
+			std::cout << "FOUND: " << stringa << std::endl;
+			std::cout << "idx 1: " << candidateWords[i].indexSeq1 << std::endl;
+			std::cout << "idx 2: " << candidateWords[i].indexSeq2 << std::endl;
+			std::cout << "wordSize: " << candidateWords[i].wordSize << std::endl;
+		}*/
 
 		gapExpansionThreshold = (wordSize * Match) + (Match * log2(SizeSeq2)) - 5;
 		//std::cout << "Gap expansion threshold: " << gapExpansionThreshold << std::endl;
@@ -326,7 +345,17 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 		//<----- Longest Increasing Subsequence ----->
 		//Find the longest increasing subsequence of the complete words
 		//Important for smaller search space and overall score/usage of words
-		if (completeWords.size() != 1)
+
+		std::sort(completeWords.begin(), completeWords.end());
+
+		/*for (int i = 0; i < completeWords.size(); i++)
+		{
+			std::cout << "idx 1: " << completeWords[i].indexSeq1 << std::endl;
+			std::cout << "idx 2: " << completeWords[i].indexSeq2 << std::endl;
+			std::cout << "wordSize: " << completeWords[i].wordSize << std::endl;
+		}*/
+
+		if (completeWords.size() > 1)
 		{
 			//Denoting X as completeWords
 			int P[completeWords.size()];
@@ -335,7 +364,7 @@ class GappedBLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 			int l = 0;
 			int lo = 0;
 			int hi = 0;
-			for (int i = 0; i < completeWords.size() - 1; i++)
+			for (int i = 0; i < completeWords.size(); i++)
 			{
 				//Binary search for the largest positive j <= l
 				//Such that X[M[j]] <= X[i]

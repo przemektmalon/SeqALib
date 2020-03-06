@@ -187,11 +187,12 @@ public:
 #include "SALocalGotoh.h"
 #include "SAGlobalGotoh.h"
 #include "SAMyersMiller.h"
+#include "CandidateWord.h"
+#include "MUM.h"
+#include "SuffixTree.h"
 #include "SABLAT.h"
 #include "SAGappedBLAT.h"
 #include "SAFOGSAA.h"
-#include "MUM.h"
-#include "SuffixTree.h"
 #include "SAMummer.h"
 
 #endif

@@ -3,7 +3,7 @@
 template <typename ContainerType, typename Ty = typename ContainerType::value_type, Ty Blank = Ty(0), typename MatchFnTy = std::function<bool(Ty, Ty)>>
 class BLATSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 {
-private:
+  private:
 	int wordSize;
 	int initialThreshold;
 
@@ -16,6 +16,25 @@ private:
 	const ScoreSystemType Mismatch = AllowMismatch
 										 ? Scoring.getMismatchPenalty()
 										 : std::numeric_limits<ScoreSystemType>::min();
+
+	struct candidateWord
+	{
+		int score;	 //Score of the word
+		int indexSeq1; //Index of the word on sequence 1
+		int indexSeq2; //Index of the word on sequence 2
+		int wordSize;
+		int maxScore; //Maximum score achieved by the alignment
+
+		candidateWord *operator=(const candidateWord &b)
+		{
+			this->score = b.score;
+			this->indexSeq1 = b.indexSeq1;
+			this->indexSeq2 = b.indexSeq2;
+			this->wordSize = b.wordSize;
+			this->maxScore = b.maxScore;
+			return this;
+		}
+	};
 
 	//Build the alignment using the BLAST hueristic algorithm
 	void buildAlignment(ContainerType &Seq1, ContainerType &Seq2, AlignedSequence<Ty, Blank> &Result)
@@ -152,12 +171,11 @@ private:
 		} while (candidateWords.size() == 0);*/
 
 		//Begin expanding out the seeds in both directions
-		bool anyExpansion = false;
-		std::vector<candidateWord> pushedWords;
-
 		while (candidateWords.size() >= 1)
 		{
 			std::vector<candidateWord> newCandidates = candidateWords;
+			std::vector<candidateWord> pushedWords;
+			bool anyExpansion = false;
 			for (int i = 0; i < newCandidates.size(); i++)
 			{
 				//<------------- Merge overlapping words ------------->
@@ -255,7 +273,7 @@ private:
 					}
 					else
 					{
-						newCandidates[i].score += Similarity;
+						score += Similarity;
 						expansion = true;
 						anyExpansion = true;
 					}
@@ -287,167 +305,68 @@ private:
 					}
 					else
 					{
-						newCandidates[i].score += Similarity;
+						score += Similarity;
 						expansion = true;
 						anyExpansion = true;
 					}
 				}
 
-				//Word cannot be expanded further
-				if (!expansion)
+				//Expanded seeds that improve upon alignment are saved for further expansion
+				if (score > newCandidates[i].score) //&& score > prevBestScore)
 				{
+					newCandidates[i].score = score;
 					pushedWords.push_back(newCandidates[i]);
-					newCandidates.erase(newCandidates.begin() + i);
+					//prevBestScore = score;
 				}
 			}
 
-			//All possible expansions have taken place so exit
-			if (!anyExpansion)
+			//No alignments acceptable after most recent expansion
+			//So search previous list of candidates to find highest scoring one
+			if (pushedWords.size() == 0)
 			{
-				candidateWords = pushedWords;
+
+				candidateWord optimal;
+				int maxScore = -9999999;
+
+				for (int i = 0; i < candidateWords.size(); i++)
+				{
+
+					if (candidateWords[i].score > maxScore)
+					{
+						maxScore = candidateWords[i].score;
+						optimal = candidateWords[i];
+					}
+				}
+
+				candidateWords.clear();
+				candidateWords.push_back(optimal);
 				break;
 			}
-
-			candidateWords = newCandidates;
-		}
-
-		candidateWords = pushedWords;
-		//<----- Longest Increasing Subsequence ----->
-		//Find the longest increasing subsequence of the complete words
-		//Important for smaller search space and overall score/usage of words
-		std::sort(candidateWords.begin(), candidateWords.end());
-
-		if (candidateWords.size() > 1)
-		{
-			//Denoting X as completeWords
-			int P[candidateWords.size()];
-			int M[candidateWords.size() + 1];
-
-			int l = 0;
-			int lo = 0;
-			int hi = 0;
-			for (int i = 0; i < candidateWords.size(); i++)
-			{
-				//Binary search for the largest positive j <= l
-				//Such that X[M[j]] <= X[i]
-				lo = 1;
-				hi = l;
-				while (lo <= hi)
-				{
-					int mid = ceil((lo + hi) / 2);
-					if (candidateWords[M[mid]] <= candidateWords[i])
-					{
-						lo = mid + 1;
-					}
-					else
-					{
-						hi = mid - 1;
-					}
-				}
-
-				//After searching, lo is 1 greater than the length
-				//of the longest prefix of X[i]
-				int newL = lo;
-
-				//The predecessor of X[i] is the last index of
-				//the subsequence of length newL - 1
-				P[i] = M[newL - 1];
-				M[newL] = i;
-
-				//If we found a subsequence longer than any we've foudn yet
-				if (newL > l)
-				{
-					l = newL;
-				}
-			}
-
-			//Reconstruct the longest increasing subsequence
-			std::vector<candidateWord> newList;
-			newList.resize(l);
-			int k = M[l];
-			for (int i = l - 1; i >= 0; i--)
-			{
-				newList[i] = candidateWords[k];
-				k = P[k];
-			}
-
 			candidateWords.clear();
-			candidateWords = newList;
+			candidateWords = pushedWords;
 		}
 
-		//<----- Build Alignment ----->
+		//Build alignment
 		if (switched)
 		{
 			ContainerType temp = Seq1;
 			Seq1 = Seq2;
 			Seq2 = temp;
-
-			for (int i = 0; i < candidateWords.size(); i++)
-			{
-				int tempIndex = candidateWords[i].indexSeq2;
-				candidateWords[i].indexSeq2 = candidateWords[i].indexSeq1;
-				candidateWords[i].indexSeq1 = tempIndex;
-			}
+			int tempIndex = candidateWords[0].indexSeq2;
+			candidateWords[0].indexSeq2 = candidateWords[0].indexSeq1;
+			candidateWords[0].indexSeq1 = tempIndex;
 		}
 
-		//For each word
-		int i = 0;
-		bool breakOut = false;
-		for (int i = 0; i < candidateWords.size(); i++)
+		for (int i = 0; i < candidateWords[0].wordSize; i++)
 		{
-			//Align word
-			alignWord(candidateWords[i], Seq1, Seq2, Result);
+			bool isValidMatch = BaseType::match(Seq1[candidateWords[0].indexSeq1 + i], Seq2[candidateWords[0].indexSeq2 + i]);
 
-			//Bridge gap to word ignoring overlapping words
-			int j = i + 1;
-			while (true)
-			{
-				if (j < candidateWords.size())
-				{
-					//Overlapping word so look to bridge to next word if possible
-					if (candidateWords[i].indexSeq1 + candidateWords[i].wordSize >= candidateWords[j].indexSeq1 || candidateWords[i].indexSeq2 + candidateWords[i].wordSize >= candidateWords[j].indexSeq2)
-					{
-						j++;
-						continue;
-					}
-					NeedlemanWunschSA<ArrayView<ContainerType>, Ty, Blank, MatchFnTy> bridge(Scoring, BaseType::getMatchOperation());
-					ArrayView<ContainerType> seq1Sub(Seq1);
-					ArrayView<ContainerType> seq2Sub(Seq2);
-					seq1Sub.sliceWindow(candidateWords[i].indexSeq1 + candidateWords[i].wordSize, candidateWords[j].indexSeq1);
-					seq2Sub.sliceWindow(candidateWords[i].indexSeq2 + candidateWords[i].wordSize, candidateWords[j].indexSeq2);
-
-					AlignedSequence<Ty, Blank> NWAlignment = bridge.getAlignment(seq1Sub, seq2Sub);
-					Data.insert(Data.end(), NWAlignment.begin(), NWAlignment.end());
-					i = j - 1;
-					break;
-				}
-				else
-				{
-					breakOut = true;
-					break;
-				}
-			}
-
-			if (breakOut)
-			{
-				i++;
-				break;
-			}
-		}
-	}
-
-	void alignWord(candidateWord word, ContainerType &Seq1, ContainerType &Seq2, AlignedSequence<Ty, Blank> &Result)
-	{
-		auto &Data = Result.Data;
-
-		for (int i = 0; i < word.wordSize; i++)
-		{
 			Data.push_back(
-				typename BaseType::EntryType(Seq1[i + word.indexSeq1], Seq2[i + word.indexSeq2], true));
+				typename BaseType::EntryType(Seq1[candidateWords[0].indexSeq1 + i], Seq2[candidateWords[0].indexSeq2 + i], isValidMatch));
 		}
 	}
 
-public:
+  public:
 	static ScoringSystem getDefaultScoring()
 	{
 		return ScoringSystem(-1, 2, -1);

@@ -166,6 +166,7 @@ class MummerSA : public SequenceAligner<ContainerType, Ty, Blank, MatchFnTy>
 
         AlignedSequence<Ty, Blank> finalBridgeAlignment = finalBridge.getAlignment(seq1FinalBridgeSub, seq2FinalBridgeSub);
         Data.insert(Data.end(), finalBridgeAlignment.begin(), finalBridgeAlignment.end());
+
     }
 
     void alignMum(MUM mum, ContainerType &Seq1, ContainerType &Seq2, AlignedSequence<Ty, Blank> &Result)

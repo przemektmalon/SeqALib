@@ -525,28 +525,43 @@ class SuffixTree
     }
 
     //<----- Funcs used for pattern matching ----->
-    int traverseEdge(ContainerType pattern, int idx, int start, int end)
+    template <typename ArrayType>
+    int traverseEdge(ArrayType pattern, int idx, int start, int end)
     {
         int k = 0;
         //Traverse the edge with character by character matching
+        //std::cout << "start: " << start << std::endl;
+        //std::cout << "idx: " << idx << std::endl;
+        //std::cout << "end: " << end << std::endl;
         for (k = start; k <= end && idx < pattern.size(); k++, idx++)
         {
+
+            //std::cout << "k: " << k << std::endl;
+            //std::cout << "idx: " << idx << std::endl;
+            //std::cout << seq[k] << " " << pattern[idx] << std::endl;
             if (!match(seq[k], pattern[idx]))
-                return -1; // mo match
+                return -1; // no match
         }
 
+        //std::cout << "pattern size: " << pattern.size() << std::endl;
         if (idx == pattern.size())
-            return 1; // match
-        return 0;     // more characters yet to match
+        {
+            //std::cout << "match" << std::endl;
+            return 1; //match
+        }
+        return 0; // more characters yet to match
     }
 
-    int doTraversalToCountLeaf(SuffixNode *n)
+    int doTraversalToCountLeaf(SuffixNode *n, std::vector<candidateWord> &candidates)
     {
         if (n == nullptr)
             return 0;
         if (n->suffixIndex > -1)
         {
-            std::cout << "Found at position: " << n->suffixIndex << std::endl;
+            //std::cout << "Found at position: " << n->suffixIndex << std::endl;
+            candidateWord cWord;
+            cWord.indexSeq1 = n->suffixIndex;
+            candidates.push_back(cWord);
             return 1;
         }
         int count = 0;
@@ -555,24 +570,25 @@ class SuffixTree
         {
             if (n->children[i] != nullptr)
             {
-                count += doTraversalToCountLeaf(n->children[i]);
+                count += doTraversalToCountLeaf(n->children[i], candidates);
             }
         }
         return count;
     }
 
-    int countLeaf(SuffixNode *n)
+    int countLeaf(SuffixNode *n, std::vector<candidateWord> &candidates)
     {
         if (n == nullptr)
             return 0;
-        return doTraversalToCountLeaf(n);
+        return doTraversalToCountLeaf(n, candidates);
     }
 
-    int doTraversal(SuffixNode *n, ContainerType pattern, int idx)
+    template <typename ArrayType>
+    void doTraversal(SuffixNode *n, ArrayType pattern, int idx, std::vector<candidateWord> &candidates)
     {
         if (n == nullptr)
         {
-            return -1; // no built tree so return no match
+            return; // no built tree so return no match
         }
         int res = -1;
         //If node n is not root node, then traverse edge
@@ -581,14 +597,21 @@ class SuffixTree
         {
             res = traverseEdge(pattern, idx, n->start, *(n->end));
             if (res == -1) //no match
-                return -1;
+                return;
             if (res == 1) //match
             {
                 if (n->suffixIndex > -1)
-                    std::cout << "susbtring count: 1 at position: " << n->suffixIndex << std::endl;
+                {
+                    //std::cout << "susbtring count: 1 at position: " << n->suffixIndex << std::endl;
+                    candidateWord cWord;
+                    cWord.indexSeq1 = n->suffixIndex;
+                    candidates.push_back(cWord);
+                }
+
                 else
-                    std::cout << "substring count: " << countLeaf(n) << std::endl;
-                return 1;
+                    countLeaf(n, candidates);
+                //std::cout << "substring count: " << countLeaf(n, candidates) << std::endl;
+                return;
             }
         }
         //Get the character index to search
@@ -601,20 +624,29 @@ class SuffixTree
         {
             index = std::distance(alphabet.begin(), result1);
         }
-
+        //std::cout << "index: " << index << std::endl;
         if (n->children[index] != nullptr)
-            return doTraversal(n->children[index], pattern, idx);
+            doTraversal(n->children[index], pattern, idx, candidates);
         else
-            return -1; // no match
+            return; // no match
     }
 
-    void checkForSubString(ContainerType pattern)
+    template <typename ArrayType>
+    std::vector<candidateWord> getCandidates(ArrayType pattern)
+    {
+        std::vector<candidateWord> candidates;
+        doTraversal(root, pattern, 0, candidates);
+        return candidates;
+    }
+
+    bool checkForSubString(ContainerType pattern)
     {
         int res = doTraversal(root, pattern, 0);
-        if (res == 1)
+        /*if (res == 1)
             std::cout << "Pattern is a susbtring" << std::endl;
         else
-            std::cout << "Pattern is NOT a substring" << std::endl;
+            std::cout << "Pattern is NOT a substring" << std::endl;*/
+        return res;
     }
 
     //<----- Funcs for getting MUMs ----->
