@@ -10,14 +10,12 @@ The algorithms currently provided by SeqALib are:
 * [Hirschberg](https://en.wikipedia.org/wiki/Hirschberg%27s_algorithm)
 * [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm)
 * [Gotoh Local and Global](http://helios.mi.parisdescartes.fr/~lomn/Cours/BI/Material2019/gap-penalty-gotoh.pdf)
-* [Myers and Miller]
-(https://pdfs.semanticscholar.org/a882/afa232d945a14bb71f79f9ed27adde16c1a6.pdf)
-* [BLAST (pairwise)]
-(https://www.sciencedirect.com/science/article/pii/S0022283605803602?via%3Dihub)
-* [Gapped BLAST (pairwise)]
-(https://academic.oup.com/nar/article/25/17/3389/1061651)
-* [FOGSAA]
-(https://www.nature.com/articles/srep01746)
+* [Myers and Miller](https://pdfs.semanticscholar.org/a882/afa232d945a14bb71f79f9ed27adde16c1a6.pdf)
+* [BLAST (pairwise)](https://www.sciencedirect.com/science/article/pii/S0022283605803602?via%3Dihub)
+* [Gapped BLAST (pairwise)](https://academic.oup.com/nar/article/25/17/3389/1061651)
+* [FOGSAA](https://www.nature.com/articles/srep01746)
+* [MUMMER](http://mummer.sourceforge.net/MUMmer.pdf)
+* [Suffix Trees](https://en.wikipedia.org/wiki/Suffix_tree)
 
 AUTHOR: Rodrigo Rocha and Sean Stirling
 
