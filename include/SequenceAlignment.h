@@ -1,26 +1,38 @@
+//===-- llvm/ADT/SequenceAlignment.h - Sequence Alignment -------*- C++ -*-===//
+//
+//                     The LLVM Compiler Infrastructure
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+//
+// Provides efficient implementations of different algorithms for sequence
+// alignment.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef SEQUENCE_ALIGNMENT_H
-#define SEQUENCE_ALIGNMENT_H
+#ifndef LLVM_ADT_SEQUENCE_ALIGNMENT_H
+#define LLVM_ADT_SEQUENCE_ALIGNMENT_H
 
-#include "ArrayView.h"
+#include "llvm/ADT/ArrayView.h"
 
-#include <cassert>
-#include <list>
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <limits.h> // INT_MIN
+#include <list>
+#include <iostream>
+#include <fstream>
 
 #define ScoreSystemType int
 
 // Store alignment result here
-template <typename Ty, Ty Blank = Ty(0)>
-class AlignedSequence
-{
+template <typename Ty, Ty Blank = Ty(0)> class AlignedSequence {
 public:
-  class Entry
-  {
+  class Entry {
   private:
-    //TODO: change it for a vector<Ty> for Multi-Sequence Alignment
+    // TODO: change it for a vector<Ty> for Multi-Sequence Alignment
     std::pair<Ty, Ty> Pair;
     bool IsMatchingPair;
 
@@ -29,10 +41,10 @@ public:
 
     Entry(Ty V1, Ty V2) : Pair(V1, V2) { IsMatchingPair = !hasBlank(); }
 
-    Entry(Ty V1, Ty V2, bool Matching) : Pair(V1, V2), IsMatchingPair(Matching) {}
+    Entry(Ty V1, Ty V2, bool Matching)
+        : Pair(V1, V2), IsMatchingPair(Matching) {}
 
-    Ty get(size_t index)
-    {
+    Ty get(size_t index) {
       assert((index == 0 || index == 1) && "Index out of bounds!");
       if (index == 0)
         return Pair.first;
@@ -46,8 +58,7 @@ public:
     bool match() { return IsMatchingPair; }
     bool mismatch() { return (!IsMatchingPair); }
 
-    Ty getNonBlank()
-    {
+    Ty getNonBlank() {
       if (Pair.first != Blank)
         return Pair.first;
       else
@@ -60,27 +71,19 @@ public:
   AlignedSequence() {}
 
   AlignedSequence(const AlignedSequence<Ty, Blank> &Other) : Data(Other.Data) {}
-  AlignedSequence(AlignedSequence<Ty, Blank> &&Other) : Data(std::move(Other.Data)) {}
+  AlignedSequence(AlignedSequence<Ty, Blank> &&Other)
+      : Data(std::move(Other.Data)) {}
 
-  AlignedSequence<Ty> &operator=(const AlignedSequence<Ty, Blank> &Other)
-  {
+  AlignedSequence<Ty> &operator=(const AlignedSequence<Ty, Blank> &Other) {
     Data = Other.Data;
     return (*this);
   }
 
-  AlignedSequence<Ty> operator=(const AlignedSequence<Ty, Blank> other)
-  {
-    Data = other.Data;
-    return (this);
-  }
-
-  void append(const AlignedSequence<Ty, Blank> &Other)
-  {
+  void append(const AlignedSequence<Ty, Blank> &Other) {
     Data.insert(Data.end(), Other.Data.begin(), Other.Data.end());
   }
 
-  void splice(AlignedSequence<Ty, Blank> &Other)
-  {
+  void splice(AlignedSequence<Ty, Blank> &Other) {
     Data.splice(Data.end(), Other.Data);
   }
 
@@ -88,8 +91,7 @@ public:
   typename std::list<Entry>::iterator end() { return Data.end(); }
 };
 
-class ScoringSystem
-{
+class ScoringSystem {
   ScoreSystemType Gap;
   ScoreSystemType Match;
   ScoreSystemType Mismatch;
@@ -98,24 +100,24 @@ class ScoringSystem
   bool AllowMismatch;
 
 public:
-  ScoringSystem(ScoreSystemType Gap, ScoreSystemType Match)
-  {
+  ScoringSystem(ScoreSystemType Gap, ScoreSystemType Match) {
     this->Gap = Gap;
     this->Match = Match;
     this->Mismatch = std::numeric_limits<ScoreSystemType>::min();
     this->AllowMismatch = false;
   }
 
-  ScoringSystem(ScoreSystemType Gap, ScoreSystemType Match, ScoreSystemType Mismatch, bool AllowMismatch = true)
-  {
+  ScoringSystem(ScoreSystemType Gap, ScoreSystemType Match,
+                ScoreSystemType Mismatch, bool AllowMismatch = true) {
     this->Gap = Gap;
     this->Match = Match;
     this->Mismatch = Mismatch;
     this->AllowMismatch = AllowMismatch;
   }
 
-  ScoringSystem(ScoreSystemType GapOpen, ScoreSystemType GapExtend, ScoreSystemType Match, ScoreSystemType Mismatch, bool AllowMismatch = true)
-  {
+  ScoringSystem(ScoreSystemType GapOpen, ScoreSystemType GapExtend,
+                ScoreSystemType Match, ScoreSystemType Mismatch,
+                bool AllowMismatch = true) {
     this->GapOpen = GapOpen;
     this->GapExtend = GapExtend;
     this->Match = Match;
@@ -123,40 +125,23 @@ public:
     this->AllowMismatch = AllowMismatch;
   }
 
-  bool getAllowMismatch()
-  {
-    return AllowMismatch;
-  }
+  bool getAllowMismatch() { return AllowMismatch; }
 
-  ScoreSystemType getMismatchPenalty()
-  {
-    return Mismatch;
-  }
+  ScoreSystemType getMismatchPenalty() { return Mismatch; }
 
-  ScoreSystemType getGapPenalty()
-  {
-    return Gap;
-  }
+  ScoreSystemType getGapPenalty() { return Gap; }
 
-  ScoreSystemType getMatchProfit()
-  {
-    return Match;
-  }
+  ScoreSystemType getMatchProfit() { return Match; }
 
-  ScoreSystemType getGapOpenPenalty()
-  {
-    return GapOpen;
-  }
+  ScoreSystemType getGapOpenPenalty() { return GapOpen; }
 
-  ScoreSystemType getGapExtendPenalty()
-  {
-    return GapExtend;
-  }
+  ScoreSystemType getGapExtendPenalty() { return GapExtend; }
 };
 
-template <typename ContainerType, typename Ty = typename ContainerType::value_type, Ty Blank = Ty(0), typename MatchFnTy = std::function<bool(Ty, Ty)>>
-class SequenceAligner
-{
+template <typename ContainerType,
+          typename Ty = typename ContainerType::value_type, Ty Blank = Ty(0),
+          typename MatchFnTy = std::function<bool(Ty, Ty)>>
+class SequenceAligner {
 private:
   ScoringSystem Scoring;
   MatchFnTy Match;
@@ -169,30 +154,63 @@ public:
 
   ScoringSystem &getScoring() { return Scoring; }
 
-  bool match(Ty Val1, Ty Val2)
-  {
-    return Match(Val1, Val2);
-  }
+  bool match(Ty Val1, Ty Val2) { return Match(Val1, Val2); }
 
   MatchFnTy getMatchOperation() { return Match; }
 
   Ty getBlank() { return Blank; }
 
-  virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType &Seq0, ContainerType &Seq1) = 0;
+  virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType &Seq0,
+                                                  ContainerType &Seq1) = 0;
+
+  // Force an alignment to be global
+  void forceGlobal(ContainerType &Seq1, ContainerType &Seq2,
+                   AlignedSequence<Ty, Blank> &Result, int idx1, int idx2,
+                   int endIdx1, int endIdx2) {
+    auto &Data = Result.Data;
+
+    // Stick on front of sequences up to alignment
+    AlignedSequence<Ty, Blank> front;
+    for (int i = 0; i < idx1; i++) {
+      front.Data.push_back(EntryType(Seq1[i], Blank, false));
+    }
+    for (int i = 0; i < idx2; i++) {
+      front.Data.push_back(EntryType(Blank, Seq2[i], false));
+    }
+
+    front.splice(Result);
+
+    // Stick on end of sequences
+    AlignedSequence<Ty, Blank> end;
+    for (int i = endIdx1; i < Seq1.size(); i++) {
+      end.Data.push_back(EntryType(Seq1[i], Blank, false));
+    }
+    for (int i = endIdx2; i < Seq2.size(); i++) {
+      end.Data.push_back(EntryType(Blank, Seq2[i], false));
+    }
+
+    front.splice(end);
+
+    Result.Data.clear();
+
+    Result.splice(front);
+
+  }
 };
 
-#include "SANeedlemanWunsch.h"
-#include "SAHirschberg.h"
-#include "SASmithWaterman.h"
-#include "SALocalGotoh.h"
-#include "SAGlobalGotoh.h"
-#include "SAMyersMiller.h"
-#include "CandidateWord.h"
-#include "MUM.h"
-#include "SuffixTree.h"
-#include "SABLAT.h"
-#include "SAGappedBLAT.h"
-#include "SAFOGSAA.h"
-#include "SAMummer.h"
+#include "llvm/ADT/SANeedlemanWunsch.h"
+#include "llvm/ADT/SADiagonalWindows.h"
+#include "llvm/ADT/SAHirschberg.h"
+#include "llvm/ADT/SASmithWaterman.h"
+#include "llvm/ADT/SAGlobalGotoh.h"
+#include "llvm/ADT/SALocalGotoh.h"
+#include "llvm/ADT/SAMyersMiller.h"
+#include "llvm/ADT/SAFOGSAA.h"
+#include "llvm/ADT/CandidateWord.h"
+#include "llvm/ADT/MUM.h"
+#include "llvm/ADT/SuffixTree.h"
+#include "llvm/ADT/SABLAT.h"
+#include "llvm/ADT/SAMummer.h"
+#include "llvm/ADT/SAGappedBLAT.h"
 
 #endif
