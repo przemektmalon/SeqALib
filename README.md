@@ -37,7 +37,7 @@ See full example in the file: `include/Test.cpp`
   // AAAC   T CAT
 ```
 
-#Coming Soon
+# Coming Soon
 
 Multiple Sequence Alignment
 
