@@ -10,22 +10,27 @@ bool equal(T V1, T V2) { return V1 == V2; }
 template <typename Ty, Ty Blank>
 void printAlignment(AlignedSequence<Ty, Blank> &Result)
 {
-    for (auto &Entry : Result)
+    for (int i = 0; i < Result.nObjects - 1; i++)
     {
-        std::cout << Entry.get(0);
+        for (auto& Entry : Result)
+        {
+            std::cout << Entry.get(i);
+        }
+        std::cout << std::endl;
+
+        for (auto& Entry : Result)
+        {
+            if (Entry.getMatch(i))
+                std::cout << "|";
+            else
+                std::cout << " ";
+        }
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
-    for (auto &Entry : Result)
+
+    for (auto& Entry : Result)
     {
-        if (Entry.match())
-            std::cout << "|";
-        else
-            std::cout << " ";
-    }
-    std::cout << std::endl;
-    for (auto &Entry : Result)
-    {
-        std::cout << Entry.get(1);
+        std::cout << Entry.get(Result.nObjects-1);
     }
     std::cout << std::endl;
 }

@@ -246,12 +246,9 @@ public:
         return ScoringSystem(-1, 2, -1);
     }
 
-    NeedlemanWunschSA() : BaseType(getDefaultScoring(), nullptr),
-                          Matrix(nullptr), Matches(nullptr) {}
+    NeedlemanWunschSA() : BaseType(getDefaultScoring(), nullptr), Matrix(nullptr), Matches(nullptr) {}
 
-    NeedlemanWunschSA(ScoringSystem Scoring, MatchFnTy Match = nullptr)
-        : BaseType(Scoring, Match),
-          Matrix(nullptr), Matches(nullptr) {}
+    NeedlemanWunschSA(ScoringSystem Scoring, MatchFnTy Match = nullptr) : BaseType(Scoring, Match), Matrix(nullptr), Matches(nullptr) {}
 
     virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType &Seq1, ContainerType &Seq2)
     {
@@ -261,5 +258,11 @@ public:
         buildResult(Seq1, Seq2, Result);
         clearAll();
         return Result;
+    }
+
+    virtual AlignedSequence<Ty, Blank> getAlignment(std::vector<ContainerType> Seqs)
+    {
+        assert(Seqs.size() == 2 && "This is a Pairwise Aligner NOT Multiple");
+        return getAlignment(Seqs[0], Seqs[1]);
     }
 };

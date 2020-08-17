@@ -418,4 +418,10 @@ public:
         clearAll();
         return Result;
     }
+
+    virtual AlignedSequence<Ty, Blank> getAlignment(std::vector<ContainerType> Seqs)
+    {
+        assert(Seqs.size() == 2 && "This is a Pairwise Aligner NOT Multiple");
+        return getAlignment(Seqs[0], Seqs[1]);
+    }
 };

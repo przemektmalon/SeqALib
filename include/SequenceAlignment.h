@@ -6,6 +6,7 @@
 #include <list>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #define ScoreSystemType int
 
@@ -17,60 +18,89 @@ public:
     class Entry
     {
     private:
-        // TODO: change it for a vector<Ty> for Multi-Sequence Alignment
-        std::pair<Ty, Ty> Pair;
-        bool IsMatchingPair;
+
+        std::vector<Ty> objects;  // Column of alignment - Could be two for pairwise, 3+ for multiple
+                                  // Does open the ability to add just 1 but this doesn't make sense so be careful eh
+
+        std::vector<bool> matches;  // Vector of matches where index 0 signifies a match/mismatch from the first character to the second
+                                    // Index 1 signifies a match from second character to third
+                                    // Will have a size one less than Column
 
     public:
-        Entry() { IsMatchingPair = false; }
+        Entry() { matches = false; }
 
-        Entry(Ty V1, Ty V2) : Pair(V1, V2) { IsMatchingPair = !hasBlank(); }
+        // Pairwise
+        // Assume matching when unknown
+        Entry(Ty V1, Ty V2) : matches({ true }), objects({ V1, V2 }) {}
 
-        Entry(Ty V1, Ty V2, bool Matching) : Pair(V1, V2), IsMatchingPair(Matching) {}
+        Entry(Ty V1, Ty V2, bool Matching) : matches({ Matching }), objects({ V1, V2 }) {}
+
+        // Multiple
+        // Assume matching when unknown
+        Entry(std::vector<Ty> V) : matches({ true }), objects(V) {}
+
+        Entry(std::vector<Ty> V, std::vector<bool> B) : matches(B), objects(V) {}
+
 
         Ty get(size_t index)
         {
-            assert((index == 0 || index == 1) && "Index out of bounds!");
-            if (index == 0)
-                return Pair.first;
-            else
-                return Pair.second;
+            assert((index >= 0 || index < objects.size()) && "Index out of bounds!");
+            return objects[index];
         }
 
-        bool empty() { return (Pair.first == Blank && Pair.second == Blank); }
-        bool hasBlank() { return (Pair.first == Blank || Pair.second == Blank); }
-
-        bool match() { return IsMatchingPair; }
-        bool mismatch() { return (!IsMatchingPair); }
-
-        Ty getNonBlank()
+        bool empty()
         {
-            if (Pair.first != Blank)
-                return Pair.first;
-            else
-                return Pair.second;
+            for (int i = 0; i < objects.size(); i++)
+            {
+                if (objects[i] != Blank)
+                    return false;
+            }
+
+            return true;
         }
+
+        bool hasBlank()
+        {
+            for (int i = 0; i < objects.size(); i++)
+            {
+                if (objects[i] == Blank)
+                    return true;
+            }
+
+            return false;
+        }
+
+        bool getMatch(size_t index)
+        {
+            return matches[index];
+        }
+
     };
 
     std::list<Entry> Data;
+    int nObjects = 2;  // Number of objects in an alignment column
+                       // 2 as default (Pairwise)
 
     AlignedSequence() {}
+    AlignedSequence(int numObjects) : nObjects(numObjects) {}
 
-    AlignedSequence(const AlignedSequence<Ty, Blank>& Other) : Data(Other.Data) {}
-    AlignedSequence(AlignedSequence<Ty, Blank>&& Other) : Data(std::move(Other.Data)) {}
+    AlignedSequence(const AlignedSequence<Ty, Blank> &Other) : Data(Other.Data) {}
+    AlignedSequence(AlignedSequence<Ty, Blank> &&Other) : Data(std::move(Other.Data)) {}
 
-    AlignedSequence<Ty>& operator=(const AlignedSequence<Ty, Blank>& Other)
+    AlignedSequence(AlignedSequence<Ty, Blank> &Other, int numObjects) : Data(Other.Data), nObjects(numObjects) {}
+
+    AlignedSequence<Ty> &operator=(const AlignedSequence<Ty, Blank> &Other)
     {
         Data = Other.Data;
         return (*this);
     }
 
-    void append(const AlignedSequence<Ty, Blank>& Other)
+    void append(const AlignedSequence<Ty, Blank> &Other)
     {
         Data.insert(Data.end(), Other.Data.begin(), Other.Data.end());
     }
 
-    void splice(AlignedSequence<Ty, Blank>& Other)
+    void splice(AlignedSequence<Ty, Blank> &Other)
     {
         Data.splice(Data.end(), Other.Data);
     }
@@ -98,7 +128,7 @@ public:
     }
 
     ScoringSystem(ScoreSystemType Gap, ScoreSystemType Match,
-        ScoreSystemType Mismatch, bool AllowMismatch = true)
+                  ScoreSystemType Mismatch, bool AllowMismatch = true)
     {
         this->Gap = Gap;
         this->Match = Match;
@@ -107,8 +137,8 @@ public:
     }
 
     ScoringSystem(ScoreSystemType GapOpen, ScoreSystemType GapExtend,
-        ScoreSystemType Match, ScoreSystemType Mismatch,
-        bool AllowMismatch = true)
+                  ScoreSystemType Match, ScoreSystemType Mismatch,
+                  bool AllowMismatch = true)
     {
         this->GapOpen = GapOpen;
         this->GapExtend = GapExtend;
@@ -142,7 +172,7 @@ public:
 
     SequenceAligner(ScoringSystem Scoring, MatchFnTy Match = nullptr) : Scoring(Scoring), Match(Match) {}
 
-    ScoringSystem& getScoring() { return Scoring; }
+    ScoringSystem &getScoring() { return Scoring; }
 
     bool match(Ty Val1, Ty Val2) { return Match(Val1, Val2); }
 
@@ -150,12 +180,16 @@ public:
 
     Ty getBlank() { return Blank; }
 
+    // Pairwise Alignment
     virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType& Seq0, ContainerType& Seq1) = 0;
 
+    // Multiple Alignment
+    virtual AlignedSequence<Ty, Blank> getAlignment(std::vector<ContainerType> Seqs) = 0;
+
     // Force an alignment to be global
-    void forceGlobal(ContainerType& Seq1, ContainerType& Seq2, AlignedSequence<Ty, Blank>& Result, int idx1, int idx2, int endIdx1, int endIdx2)
+    void forceGlobal(ContainerType &Seq1, ContainerType &Seq2, AlignedSequence<Ty, Blank> &Result, int idx1, int idx2, int endIdx1, int endIdx2)
     {
-        auto& Data = Result.Data;
+        auto &Data = Result.Data;
 
         // Stick on front of sequences up to alignment
         AlignedSequence<Ty, Blank> front;
@@ -190,8 +224,9 @@ public:
 
     // Longest Increasing Subsequence Algorithm
     // Algorithms like MUMmer and BLAST make use of this
+    // Might consider moving this to static funcs to reduce bloat
     template <typename ArrayType>
-    void longestIncreasingSubsequence(ArrayType& array)
+    void longestIncreasingSubsequence(ArrayType &array)
     {
         // Perform LIS on ArrayType via index of second sequence
         if (array.size() != 1)
