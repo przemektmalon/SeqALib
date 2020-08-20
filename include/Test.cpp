@@ -40,6 +40,7 @@ int main(int argc, char **argv)
 
     std::string seq1 = "AATCG";
     std::string seq2 = "AACG";
+    std::string seq3 = "GAATG";
     //std::string seq1 = "AGGATCGGCTAGAGCTAGAGCTAGCTAGTAGC";
     //std::string seq2 = "GAGATCGGCGGATTACAGGCTATCGA";
     //std::string seq1 = "AAAAAAAAAAAAAAAGGGGGGGGGGGGGGGGGGGGTTTTTTTTTTTTTTTTTTCCCCCCCCCCCCCCCCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -222,6 +223,19 @@ int main(int argc, char **argv)
     suffTree.deleteTree();
     std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
     std::cout << "" << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "<------------------------------------------------------------------------->" << std::endl;
+
+    /*std::vector<std::string> Seqs = { seq1, seq2, seq3 };
+    auto t27 = std::chrono::high_resolution_clock::now();
+    AlignedSequence<char, '-'> MSANW = NeedlemanWunschMSA<std::string, char, '-'>(scoringSystem, equal<char>).getAlignment(Seqs);
+    auto t28 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(t28 - t27).count();
+    std::cout << "# MSANW: " << std::endl;
+    printAlignment(MSANW);
+    std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
+    std::cout << std::endl;*/
 
 
     //std::getchar();

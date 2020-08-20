@@ -1,6 +1,6 @@
 # SeqALib: A Library for Sequence Alignment
 
-SeqALib contains efficient implementation of sequence alignment algorithms from
+SeqALib contains efficient implementations of sequence alignment algorithms from
 Bioinformatics.
 
 Templated to allow for aligning of strings and custom objects by providing a matching function of your own design.

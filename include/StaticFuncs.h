@@ -20,7 +20,8 @@ public:
         seq1Sub.sliceWindow(0, Seq1.size());
         seq2Sub.sliceWindow(0, Seq2.size());
         AlignedSequence<Ty, Blank> NWAlignment = NW.getAlignment(seq1Sub, seq2Sub);
-        Data.insert(Data.end(), NWAlignment.Data.begin(), NWAlignment.Data.end());
+        //Data.push_back(Data.end(), NWAlignment.Data.begin(), NWAlignment.Data.end());
+        Data.push_back(NWAlignment.Data);
     }
 
     //Bridging using NW to align the spaces between the anchors found in algorithms like BLAST or MUMmer
@@ -35,6 +36,7 @@ public:
         seq2BridgeSub.sliceWindow(idx2, endIdx2);
 
         AlignedSequence<Ty, Blank> bridgeAlignment = NWBridge.getAlignment(seq1BridgeSub, seq2BridgeSub);
-        Data.insert(Data.end(), bridgeAlignment.Data.begin(), bridgeAlignment.Data.end());
+        //Data.push_back(Data.end(), bridgeAlignment.Data.begin(), bridgeAlignment.Data.end());
+        Data.push_back(bridgeAlignment.Data);
     }
 };

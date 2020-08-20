@@ -10,6 +10,8 @@
 
 #define ScoreSystemType int
 
+#include "AlignmentVector.h"
+
 // Store alignment result here
 template <typename Ty, Ty Blank = Ty(0)>
 class AlignedSequence
@@ -40,6 +42,13 @@ public:
         Entry(std::vector<Ty> V) : matches({ true }), objects(V) {}
 
         Entry(std::vector<Ty> V, std::vector<bool> B) : matches(B), objects(V) {}
+
+        Entry(Entry entry, Ty V, bool Matching)
+        {
+            entry.add(V, Matching);
+            objects = entry.objects;
+            matches = entry.matches;
+        }
 
 
         Ty get(size_t index)
@@ -75,17 +84,26 @@ public:
             return matches[index];
         }
 
+        void add(Ty V, bool M)
+        {
+            objects.push_back(V);
+            matches.push_back(M);
+        }
+
     };
 
-    std::list<Entry> Data;
+    AlignVec<Entry> Data;
     int nObjects = 2;  // Number of objects in an alignment column
                        // 2 as default (Pairwise)
 
-    AlignedSequence() {}
+    AlignedSequence()
+    {
+
+    }
     AlignedSequence(int numObjects) : nObjects(numObjects) {}
 
     AlignedSequence(const AlignedSequence<Ty, Blank> &Other) : Data(Other.Data) {}
-    AlignedSequence(AlignedSequence<Ty, Blank> &&Other) : Data(std::move(Other.Data)) {}
+    //AlignedSequence(AlignedSequence<Ty, Blank> &&Other) : Data(std::move(Other.Data)) {}
 
     AlignedSequence(AlignedSequence<Ty, Blank> &Other, int numObjects) : Data(Other.Data), nObjects(numObjects) {}
 
@@ -93,6 +111,11 @@ public:
     {
         Data = Other.Data;
         return (*this);
+    }
+
+    Entry& operator[](size_t index)
+    {
+        return Data[index];
     }
 
     void append(const AlignedSequence<Ty, Blank> &Other)
@@ -103,6 +126,18 @@ public:
     void splice(AlignedSequence<Ty, Blank> &Other)
     {
         Data.splice(Data.end(), Other.Data);
+    }
+
+    int size()
+    {
+        return Data.size();
+    }
+
+    void insert(Ty V, int index)
+    {
+        Data[index].add(Blank, false);
+        auto entry = Entry(V, nObjects);
+        Data.insert(Data.begin() + index, entry);
     }
 
     typename std::list<Entry>::iterator begin() { return Data.begin(); }
@@ -303,3 +338,4 @@ public:
 #include "SuffixTree.h"
 #include "SABLAT.h"
 #include "SAMummer.h"
+#include "MSAProgressiveNW.h"
