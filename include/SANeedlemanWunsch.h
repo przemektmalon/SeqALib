@@ -252,7 +252,7 @@ public:
 
     virtual AlignedSequence<Ty, Blank> getAlignment(ContainerType &Seq1, ContainerType &Seq2)
     {
-        AlignedSequence<Ty, Blank> Result;
+        AlignedSequence<Ty, Blank> Result(2, Seq1.size() + Seq2.size());
         cacheAllMatches(Seq1, Seq2);
         computeScoreMatrix(Seq1, Seq2);
         buildResult(Seq1, Seq2, Result);

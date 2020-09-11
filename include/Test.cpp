@@ -227,6 +227,61 @@ int main(int argc, char **argv)
     std::cout << std::endl;
     std::cout << "<------------------------------------------------------------------------->" << std::endl;
 
+    std::cout << std::endl;
+    double similarity;
+    SearchStrategy<std::string, char, '-'> searchStrategy(SA.getMatchOperation());
+
+    std::ifstream file("random_strings.txt");
+    std::vector<std::string> strings;
+
+    std::string str;
+    std::string myString = "gunMXMmwikiuptglaoKhyIBySaaFcTCHqZjOCpKaQRXDBkeNVrZChMbZnDHtPIHlICZyMiBsyYEZFwdNkSpnQsinVsunWjBmXWMgBxJcZSkxTNTQgqJpsRSMlrTKiCJeTWpsNRrzdJGBmLQuZKbidfrGKPStCbmzhcbVfrrsSWMrjCGUwpdVpljqIHlTYaRKfnHnzzBlSumsiwvLEdMrcLiqmEmsVWRzTvmrnseYGQQQUVornHlBWNBzfafZvtJYVsxaZbVfskwCkdSToGAVnVPcZoyOxWrWgABNdjXpEXqTNVDQcMmyqjcoxeftUHJGhYuuZRzeZLBeIcEBKHhcspZzIbqVvnvZkbZIJZldvmFqRBQpPuPuTwFrjNWoJSJIfsjwtHSHwlQnOmGlqfYsArgwJxRuzjaWQeFfFfFYNsrdiUBkCFTQQCdmDALEoskNxTqOwrGHXUkPOvYPQPRiEYWwApRYgMNVPcEMMzEycjxmSBzcvBDNCmruxQlKYNRhOZaKEPqZacklcmlFxdTjRMqSrMafrIfGdZczMHtZCfyIsmNsjNnLESkyMzKszAlEGUPdUXmhFBJNkZDTVHxNDzjuyCqLFkdGDEqSMPjOpjSuRRZXffwlCbBRWgPQFvjKXhnPvofyiXwkRWMEQnWfTmObJtEcGuUkvQhFjQoegSokXDdYHKdTUHjhQGHyecmRYUvkOMbuHaUGWSjRqItuNBiQvdCElaqKFTkkXXYhxTLggbeeBPLOjRpNHFcLLUFDpJxXzJxfAyrEBnyOQLGcNSDrtyjRqNavnRLJYDJPMolpwxjxvLBqgcxHfDNBqikbSNzYWhsJjItvXetOOqVSgNlqiUyHuuKRoyxiCJuUddzfkaJajgRXILqsxPHBcagyaZldBggcRtcSqLNbrqUsQqRAxzdZPzpwVglSyhcMBmJatUxNIZlsqRBsBfvFzFRzJauycIrmoTdejQrbvWiVxiDZUJAyhJxPTXMLvcZo";
+
+    while (std::getline(file, str))
+    {
+        if (str.size() > 0)
+            strings.push_back(str);
+    }
+
+    std::cout << strings.size() << std::endl;
+    double maxScore = 0.0;
+    int index = 0;
+
+    auto t27 = std::chrono::high_resolution_clock::now();
+
+    //auto h1 = searchStrategy.fnv1a(seq1);
+   // auto h2 = searchStrategy.fnv1a(seq2);
+
+    std::vector<uint32_t> shingleHashesSeq1 = searchStrategy.generateShinglesSingleHashPipelineTurbo<2>(myString);
+
+    for (int i = 0; i < strings.size(); i++)
+    {
+        std::vector<uint32_t> shingleHashesSeq2 = searchStrategy.generateShinglesSingleHashPipelineTurbo<2>(strings[i]);
+        double temp = searchStrategy.JaccardSingleHashFast(shingleHashesSeq1, shingleHashesSeq2, 0.8);
+
+        if (temp > maxScore)
+        {
+            maxScore = temp;
+            index = i;
+        }
+    }
+
+    auto t28 = std::chrono::high_resolution_clock::now();
+    
+    std::cout << "Most similar string found at index: " << index << " which is string: " << strings[index] << std::endl;
+
+
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(t28 - t27).count();   
+
+    std::cout << "# Similarity Score: " << std::endl;
+
+    std::cout << "Similarity: " << maxScore << std::endl;
+
+    std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
+
+
+    //std::cout << "Similarity: " << similarity << std::endl;
+
     /*std::vector<std::string> Seqs = { seq1, seq2, seq3 };
     auto t27 = std::chrono::high_resolution_clock::now();
     AlignedSequence<char, '-'> MSANW = NeedlemanWunschMSA<std::string, char, '-'>(scoringSystem, equal<char>).getAlignment(Seqs);

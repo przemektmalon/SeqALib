@@ -29,7 +29,7 @@ public:
                                     // Will have a size one less than Column
 
     public:
-        Entry() { matches = false; }
+        Entry() { matches = { false }; }
 
         // Pairwise
         // Assume matching when unknown
@@ -92,17 +92,27 @@ public:
 
     };
 
-    AlignVec<Entry> Data;
+    //AlignVec<Entry> Data;
+    std::list<Entry> Data;
     int nObjects = 2;  // Number of objects in an alignment column
                        // 2 as default (Pairwise)
 
     AlignedSequence()
     {
-
+        //Data = AlignVec<Entry>(32);
     }
-    AlignedSequence(int numObjects) : nObjects(numObjects) {}
 
-    AlignedSequence(const AlignedSequence<Ty, Blank> &Other) : Data(Other.Data) {}
+    AlignedSequence(int numObjects, size_t size) : nObjects(numObjects)
+    {
+        //Data = AlignVec<Entry>(size);
+    }
+
+    AlignedSequence(size_t size)
+    {
+        //Data = AlignVec<Entry>(size);
+    }
+
+    AlignedSequence(const AlignedSequence<Ty, Blank>& Other) : Data(Other.Data) {}
     //AlignedSequence(AlignedSequence<Ty, Blank> &&Other) : Data(std::move(Other.Data)) {}
 
     AlignedSequence(AlignedSequence<Ty, Blank> &Other, int numObjects) : Data(Other.Data), nObjects(numObjects) {}
@@ -126,6 +136,7 @@ public:
     void splice(AlignedSequence<Ty, Blank> &Other)
     {
         Data.splice(Data.end(), Other.Data);
+        //Data.splice(Other.Data);
     }
 
     int size()
@@ -140,8 +151,10 @@ public:
         Data.insert(Data.begin() + index, entry);
     }
 
-    typename std::list<Entry>::iterator begin() { return Data.begin(); }
-    typename std::list<Entry>::iterator end() { return Data.end(); }
+    //typename std::list<Entry>::iterator begin() { return Data.begin(); }
+    //typename std::list<Entry>::iterator end() { return Data.end(); }
+    typename auto begin() { return Data.begin(); }
+    typename auto end() { return Data.end(); }
 };
 
 class ScoringSystem
@@ -339,3 +352,4 @@ public:
 #include "SABLAT.h"
 #include "SAMummer.h"
 #include "MSAProgressiveNW.h"
+#include "SearchStrategy.h"

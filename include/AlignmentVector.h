@@ -21,16 +21,22 @@ public:
     }
 
     AlignVec(AlignVec&&) = delete;
-    AlignVec& operator=(AlignVec&&) = delete;
+    AlignVec& operator=(const AlignVec&& AV)
+    {
+        m_container = AV.m_container;
+        left = AV.left;
+        right = AV.right;
+        return *this;
+    }
     AlignVec& operator=(const AlignVec& AV)
     {
         m_container = AV.m_container;
         left = AV.left;
         right = AV.right;
+        return *this;
     }
 
-    AlignVec(size_t initialSize) {
-        m_container.resize(initialSize);
+    AlignVec(size_t initialSize) : m_container(initialSize) {
         left = initialSize / 2;
         right = left + 1;
         assert(right < initialSize && "Bad initial size");
@@ -49,13 +55,13 @@ public:
             grow();
     }
 
-    void push_back(const AlignVec& V)
+    void push_back(AlignVec& V)
     {
-        for (int i = 0; i < V.size(); i++)
-        {
-            push_back(V[i]);
-        }
+        if (right + V.size() >= m_container.size())
+            resize((size() + V.size()) * 1.5);
 
+        for (const auto e : V)
+            m_container[right] = e, ++right;
     }
 
     auto begin()
@@ -65,12 +71,12 @@ public:
 
     auto end()
     {
-        return m_container.end() + right - 1;
+        return m_container.begin() + right;
     }
 
     auto size()
     {
-        return m_container.size();
+        return (right - left) - 1;
     }
 
     void clear()
@@ -79,14 +85,19 @@ public:
         AlignVec(32);
     }
 
+    void splice(AlignVec& V)
+    {
+        push_back(V);
+    }
+
     /*template<class InputIt>
     void insert(InputIt thisIter, InputIt first, InputIt end)
     {
 
     }*/
 
-    T& operator[](size_t index) {
-        assert(1 + left + index < right);
+    T& operator[](size_t index) const {
+        // assert(1 + left + index < right);
         return m_container[1 + left + index];
     }
 
@@ -97,9 +108,12 @@ private:
                          // right occupies the right of the rightmost populated index
 
     void grow() {
-        // CRUDE WAY OF DOING THIS! You can figure out the better, in place, way ;)
+        resize(m_container.size() * 1.5);
+    }
+
+    void resize(size_t newSize) {
         std::vector<T> temp{ m_container };
-        m_container.resize(m_container.size() * 1.5);
+        m_container.resize(newSize);
         m_container.clear();
         size_t mid = m_container.size() / 2;
         left = mid - (temp.size() / 2);
