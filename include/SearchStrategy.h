@@ -16,7 +16,7 @@ public:
     SearchStrategy(MatchFnTy match) : matchFn(match) {}
 
 
-    uint32_t fnv1a(ContainerType Seq)
+    uint32_t fnv1a(const ContainerType &Seq)
     {
         uint32_t hash = 2166136261;
         int len = Seq.size();
@@ -30,7 +30,7 @@ public:
         return hash;
     }
 
-    uint32_t fnv1a(std::vector<uint32_t> Seq)
+    uint32_t fnv1a(const std::vector<uint32_t> &Seq)
     {
         uint32_t hash = 2166136261;
         int len = Seq.size();
@@ -45,7 +45,7 @@ public:
     }
 
     template<uint32_t K>
-    std::vector<uint32_t> generateShinglesSingleHashPipeline(ContainerType Seq)
+    std::vector<uint32_t> generateShinglesSingleHashPipeline(const ContainerType &Seq)
     {
         uint32_t pipeline[K] = { 0 };
         int len = Seq.size();
@@ -80,81 +80,77 @@ public:
         return newVec;
     }
 
-    template<uint32_t K>
-    std::vector<uint32_t> generateShinglesSingleHashPipelineTurbo(ContainerType Seq)
+    template<uint32_t K, typename T>
+    std::vector<uint32_t>& generateShinglesSingleHashPipelineTurbo(const ContainerType& Seq, std::vector<T>& ret)
     {
-        uint32_t pipeline[K] = { 0 };
-        int len = Seq.size();
-        std::vector<uint32_t> ret;
+      uint32_t pipeline[K] = { 0 };
+      int len = Seq.size();
+      std::unordered_set<uint32_t> set;
+      uint32_t last = 0;
 
-        std::make_heap(ret.begin(), ret.end());
-        std::unordered_set<uint32_t> set;
+      for (int i = 0; i < len; i++)
+      {
 
-        for (int i = 0; i < len; i++)
+        for (int k = 0; k < K; k++)
         {
-
-            for (int k = 0; k < K; k++)
-            {
-                pipeline[k] = pipeline[k] ^ Seq[i];
-                pipeline[k] = pipeline[k] * 1099511628211;
-            }
-
-            //Collect head of pipeline
-            if (ret.size() <= 199)
-            {
-                ret.push_back(pipeline[0]); std::push_heap(ret.begin(), ret.end());
-            }
-
-            if (pipeline[0] < ret.front() && ret.size() > 199)
-            {
-               if (set.find(pipeline[0]) == set.end())
-                {
-                    set.insert(pipeline[0]);
-
-                    std::pop_heap(ret.begin(), ret.end()); ret.pop_back();
-
-                    ret.push_back(pipeline[0]); std::push_heap(ret.begin(), ret.end());
-
-                    std::sort_heap(ret.begin(), ret.end());
-                }
-            }
-
-            //Shift pipeline
-            for (int k = 0; k < K - 1; k++)
-            {
-                pipeline[k] = pipeline[k + 1];
-            }
-            pipeline[K - 1] = 2166136261;
+          pipeline[k] = pipeline[k] ^ Seq[i];
+          pipeline[k] = pipeline[k] * 1099511628211;
         }
 
-        return ret;
+        //Collect head of pipeline
+        if (last <= 199)
+        {
+          ret[last++] = pipeline[0];
+          std::push_heap(ret.begin(), ret.end());
+        }
+
+        if (pipeline[0] < ret.front() && last > 199)
+        {
+          if (set.find(pipeline[0]) == set.end())
+          {
+            set.insert(pipeline[0]);
+
+            std::pop_heap(ret.begin(), ret.end());
+
+            ret[last] = pipeline[0];
+
+            std::push_heap(ret.begin(), ret.end());
+            std::sort_heap(ret.begin(), ret.end());
+          }
+        }
+
+        //Shift pipeline
+        for (int k = 0; k < K - 1; k++)
+        {
+          pipeline[k] = pipeline[k + 1];
+        }
+        pipeline[K - 1] = 2166136261;
+      }
+
+      return ret;
     }
 
-    std::vector<uint32_t> generateBands(std::vector<uint32_t> minHashes, uint32_t rows, uint32_t bands, uint32_t threshold)
+    template<typename T>
+    std::vector<uint32_t> &generateBands(const std::vector<uint32_t>& minHashes, uint32_t rows, uint32_t bands, uint32_t threshold, std::vector<T> &lsh)
     {
-
-        // MIGHT HAVE TO PIPELINE THIS COS DOIN IT NICE AND CLEAN COULD BE SLOW
-        std::vector<uint32_t> lsh;
-
         // Generate a hash for each band
         for (int i = 0; i < bands; i++)
         {
             // Perform fnv1a on the rows
             auto first = minHashes.begin() + (i*rows);
             auto last = minHashes.begin() + (i*rows) + rows;
-            std::vector<uint32_t> newVec(first, last);
-            lsh.push_back(fnv1a(newVec));
+            //std::vector<uint32_t> newVec(first, last);
+            lsh[i] = fnv1a(std::vector<uint32_t>{first, last});
         }
 
         return lsh;
     }
 
-    template<uint32_t K>
-    std::vector<uint32_t> generateShinglesSingleHashPipelinePrem(ContainerType Seq)
+    template<uint32_t K, typename T>
+    std::vector<uint32_t> &generateShinglesSingleHashPipelinePrem(const ContainerType &Seq, std::vector<T> &ret)
     {
         uint32_t pipeline[K] = { 0 };
         int32_t len = Seq.size();
-        std::vector<uint32_t> ret(len);
 
         for (int32_t i = 0; i < len; i++)
         {
@@ -191,8 +187,8 @@ public:
         return ret;
     }
 
-    template<uint32_t K>
-    std::vector<uint32_t> generateShinglesSingleHashPipelinePremFast(ContainerType Seq)
+    template<uint32_t K, typename T>
+    std::vector<uint32_t> &generateShinglesSingleHashPipelinePremFast(const ContainerType &Seq, std::vector<T> &ret)
     {
         uint32_t pipeline[K] = { 0 };
         uint32_t len = Seq.size();
@@ -201,7 +197,6 @@ public:
         for (uint32_t i = 0; i < len; ++i)
         {
             // const int M = i % K;
-            #pragma unroll
             for (uint32_t k = 0; k < K; ++k)
             {
                 pipeline[k] ^= Seq[i];
@@ -214,15 +209,15 @@ public:
 
         std::partial_sort(ret.begin(), ret.begin() + 200, ret.end());
 
-        auto first = ret.begin();
-        auto last = ret.begin() + 200;
+        //auto first = ret.begin();
+        //auto last = ret.begin() + 200;
 
-        std::vector<uint32_t> newVec(first, last);
+        //std::vector<uint32_t> newVec(first, last);
 
-        return newVec;
+        return ret;
     }
 
-    double JaccardSingleHash(std::vector<uint32_t> seq1, std::vector<uint32_t>seq2)
+    double JaccardSingleHash(const std::vector<uint32_t> &seq1, const std::vector<uint32_t> &seq2)
     {
         int len1 = seq1.size();
         int len2 = seq2.size();
@@ -251,7 +246,7 @@ public:
         return nintersect / (double)nunion;
     }
 
-    double JaccardSingleHashFast(std::vector<uint32_t> seq1, std::vector<uint32_t>seq2, double alpha)
+    double JaccardSingleHashFast(const std::vector<uint32_t> &seq1, const std::vector<uint32_t> &seq2, double alpha)
     {
         int len1 = seq1.size();
         int len2 = seq2.size();

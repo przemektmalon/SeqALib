@@ -236,8 +236,7 @@ int main(int argc, char **argv)
     std::vector<std::string> strings;
 
     std::string str;
-    std::string myString = "gunMXMmwikiuptglaoKhyIBySaaFcTCHqZjOCpKaQRXDBkeNVrZChMbZnDHtPIHlICZyMiBsyYEZFwdNkSpnQsinVsunWjBmXWMgBxJcZSkxTNTQgqJpsRSMlrTKiCJeTWpsNRrzdJGBmLQuZKbidfrGKPStCbmzhcbVfrrsSWMrjCGUwpdVpljqIHlTYaRKfnHnzzBlSumsiwvLEdMrcLiqmEmsVWRzTvmrnseYGQQQUVornHlBWNBzfafZvtJYVsxaZbVfskwCkdSToGAVnVPcZoyOxWrWgABNdjXpEXqTNVDQcMmyqjcoxeftUHJGhYuuZRzeZLBeIcEBKHhcspZzIbqVvnvZkbZIJZldvmFqRBQpPuPuTwFrjNWoJSJIfsjwtHSHwlQnOmGlqfYsArgwJxRuzjaWQeFfFfFYNsrdiUBkCFTQQCdmDALEoskNxTqOwrGHXUkPOvYPQPRiEYWwApRYgMNVPcEMMzEycjxmSBzcvBDNCmruxQlKYNRhOZaKEPqZacklcmlFxdTjRMqSrMafrIfGdZczMHtZCfyIsmNsjNnLESkyMzKszAlEGUPdUXmhFBJNkZDTVHxNDzjuyCqLFkdGDEqSMPjOpjSuRRZXffwlCbBRWgPQFvjKXhnPvofyiXwkRWMEQnWfTmObJtEcGuUkvQhFjQoegSokXDdYHKdTUHjhQGHyecmRYUvkOMbuHaUGWSjRqItuNBiQvdCElaqKFTkkXXYhxTLggbeeBPLOjRpNHFcLLUFDpJxXzJxfAyrEBnyOQLGcNSDrtyjRqNavnRLJYDJPMolpwxjxvLBqgcxHfDNBqikbSNzYWhsJjItvXetOOqVSgNlqiUyHuuKRoyxiCJuUddzfkaJajgRXILqsxPHBcagyaZldBggcRtcSqLNbrqUsQqRAxzdZPzpwVglSyhcMBmJatUxNIZlsqRBsBfvFzFRzJauycIrmoTdejQrbvWiVxiDZUJAyhJxPTXMLvcZo";
-
+    std::string myString = "ANcjzTTtGXQXIvFTJbQoIzDkFDFDwbOhUSiclYJjyIFvUGxRRDQIrlhNpSJkqJmWMgZnbLRYTpQJAAAzvFwHOponrIrpXambqTQmmhxtkDCLmGzgAmJfDQoNyMnXjIXeTbGeQAuXHdfJbOReLNPCOTOTxydbwDYHyPrTandtSpYUPXEFjjkhbfoxjVjahkizXqoSxNmDbtbSglrCJjHWnEkNKEZPIxycTNPyXkXtzDpDhGAOxHndUCyKFrrlXTpTXkMfwEUDgKtdUaGKxCVXghAJRZnQzKOuNzdVNuyntbIfXuuHYQALZjkFYskqWrUHSHHtsraDysglYZlaGpEfWGApNEgvZXnSBZdOBuJENmjchrCFDXOVQsGmSklzWjWpmRKSfOYAUhNVYVwzkvqJMaOBnmeRdHDgLOphbZLEPilwcXYVHNCNscYECSmcNIRchDJEGuujSwAYbPDXkoENVXUIBsnITeGvmuEEXxuACmaNQKSKlQQGMbDLWUyaXjagLmYFEhpDhIUPjCopYAIthKjrRaZiMzgacxyzJbKIsaTknMZkknkrBhCsGcpBScNUGROVJhZMSNHjSkGfFUzbhxIBbGbgPGoNMmKwPLiRAxmuKNzMJdaMCbhlcKVieKsaGGfeNrvPeXdwsJWAUkEjwwoCLVhElOjyRNPDTDFznUwlKIHZsolsMACZnRLIwfvzLtzUNkKYmJWdeRVmhTlFFtALrHzomnWQRvRkPovyPumDFZBRhdQQkRDSghJwlapZSvQrIgxjqpNdddBwTfwzNWmxBXOEhicXodRpQDOJeXowrCChWgypBkajQGLDgqeIXPPZQQFccwXYNMTRGYKfCDzCvYKCTedWPbrttpXQgmyPjGqKYNdHJrZJsIfjFQqycCwbOZcsbcghuPPdZVwRYpjzqUCIEMJbroWhwpdrgBCbhOqoWFMnhrwETKBsmkhhoeZjDlSbRdTkKOIPXtsHgvxXWEbLZczOlgujFaNq";
     while (std::getline(file, str))
     {
         if (str.size() > 0)
@@ -250,15 +249,21 @@ int main(int argc, char **argv)
 
     auto t27 = std::chrono::high_resolution_clock::now();
 
-    std::vector<uint32_t> shingleHashesSeq1 = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(myString);
+    uint32_t hashtableSize = myString.size();
+
+    std::vector<uint32_t> shingleHashesSeq1(hashtableSize);
+    std::vector<uint32_t> shingleHashesSeq2(hashtableSize);
+    searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(myString, shingleHashesSeq1);
 
     for (int i = 0; i < strings.size(); i++)
     {
-        std::vector<uint32_t> shingleHashesSeq2 = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(strings[i]);
+        //shingleHashesSeq2.clear();
+        searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(strings[i], shingleHashesSeq2);
         double temp = searchStrategy.JaccardSingleHashFast(shingleHashesSeq1, shingleHashesSeq2, 0.8);
 
         if (temp > maxScore)
         {
+          
             maxScore = temp;
             index = i;
         }
@@ -286,6 +291,10 @@ int main(int argc, char **argv)
         std::vector<std::unordered_map<uint32_t, std::string*>> bands;
     }lsh;
 
+    auto pregen = std::chrono::high_resolution_clock::now();
+    auto postgen = std::chrono::high_resolution_clock::now();
+    long long genTime{};
+
     auto t29 = std::chrono::high_resolution_clock::now();
 
     uint32_t rows = 10;
@@ -293,12 +302,22 @@ int main(int argc, char **argv)
 
     lsh.bands.resize(bands);
 
+    std::vector<uint32_t> shingleHashes(hashtableSize);
+    std::vector<uint32_t> bandHashes(bands);
+
+    for (int i = 0; i < strings.size(); ++i) {
+      lsh.bands.reserve(bands);
+    }
 
     // For each string
     for (int i = 0; i < strings.size(); i++)
     {
-        std::vector<uint32_t> shingleHashes = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(strings[i]);
-        std::vector<uint32_t> bandHashes = searchStrategy.generateBands(shingleHashes, rows, bands, 0.8);
+        pregen = std::chrono::high_resolution_clock::now();
+        searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(strings[i], shingleHashes);
+        searchStrategy.generateBands(shingleHashes, rows, bands, 0.8, bandHashes);
+        postgen = std::chrono::high_resolution_clock::now();
+
+        genTime += std::chrono::duration_cast<std::chrono::microseconds>(postgen - pregen).count();
 
         for (int j = 0; j < bands; j++)
         {
@@ -310,6 +329,8 @@ int main(int argc, char **argv)
     auto t30 = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(t30 - t29).count();
     std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
+    std::cout << "Generation time: " << genTime << " microseconds\n";
+    std::cout << "Band time: " << duration - genTime << " microseconds\n";
 
 
 
@@ -325,17 +346,22 @@ int main(int argc, char **argv)
 
     auto t31 = std::chrono::high_resolution_clock::now();
 
-    std::vector<uint32_t> myStringHashes = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(myString);
-    std::vector<uint32_t> myStringBands = searchStrategy.generateBands(myStringHashes, rows, bands, 0.8);
+    std::vector<uint32_t> myStringHashes(hashtableSize);
+    searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(myString, myStringHashes);
+    std::vector<uint32_t> myStringBands(bands);
+    searchStrategy.generateBands(myStringHashes, rows, bands, 0.8, myStringBands);
+    std::vector<uint32_t> foundStrHashes(hashtableSize);
+
+    std::string foundStr;
 
     for (int i = 0; i < bands; i++)
     {
         if (lsh.bands[i].count(myStringBands[i]) > 0)
         {
             // We have a match so find it and record similarity
-            std::string foundStr = *lsh.bands[i].at(myStringBands[i]);
+            foundStr = *lsh.bands[i].at(myStringBands[i]);
 
-            std::vector<uint32_t> foundStrHashes = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(foundStr);
+            searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(foundStr, foundStrHashes);
 
             double temp = searchStrategy.JaccardSingleHashFast(myStringHashes, foundStrHashes, 0.8);
 
