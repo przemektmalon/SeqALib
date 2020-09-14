@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <unordered_map>
 
 #include "SequenceAlignment.h"
 
@@ -249,14 +250,11 @@ int main(int argc, char **argv)
 
     auto t27 = std::chrono::high_resolution_clock::now();
 
-    //auto h1 = searchStrategy.fnv1a(seq1);
-   // auto h2 = searchStrategy.fnv1a(seq2);
-
-    std::vector<uint32_t> shingleHashesSeq1 = searchStrategy.generateShinglesSingleHashPipelineTurbo<2>(myString);
+    std::vector<uint32_t> shingleHashesSeq1 = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(myString);
 
     for (int i = 0; i < strings.size(); i++)
     {
-        std::vector<uint32_t> shingleHashesSeq2 = searchStrategy.generateShinglesSingleHashPipelineTurbo<2>(strings[i]);
+        std::vector<uint32_t> shingleHashesSeq2 = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(strings[i]);
         double temp = searchStrategy.JaccardSingleHashFast(shingleHashesSeq1, shingleHashesSeq2, 0.8);
 
         if (temp > maxScore)
@@ -278,6 +276,87 @@ int main(int argc, char **argv)
     std::cout << "Similarity: " << maxScore << std::endl;
 
     std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
+
+    std::cout << std::endl;
+
+
+    std::cout << "# Pre-Computation For LSH: " << std::endl;
+
+    struct LSH {
+        std::vector<std::unordered_map<uint32_t, std::string*>> bands;
+    }lsh;
+
+    auto t29 = std::chrono::high_resolution_clock::now();
+
+    uint32_t rows = 10;
+    uint32_t bands = 20;
+
+    lsh.bands.resize(bands);
+
+
+    // For each string
+    for (int i = 0; i < strings.size(); i++)
+    {
+        std::vector<uint32_t> shingleHashes = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(strings[i]);
+        std::vector<uint32_t> bandHashes = searchStrategy.generateBands(shingleHashes, rows, bands, 0.8);
+
+        for (int j = 0; j < bands; j++)
+        {
+            std::string* ptrStr = &strings[i];
+            lsh.bands[j].insert(std::make_pair(bandHashes[j], ptrStr));
+        }
+    }
+
+    auto t30 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(t30 - t29).count();
+    std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
+
+
+
+
+
+
+
+
+
+
+    maxScore = 0.0;
+    std::string finalFoundStr;
+
+    auto t31 = std::chrono::high_resolution_clock::now();
+
+    std::vector<uint32_t> myStringHashes = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(myString);
+    std::vector<uint32_t> myStringBands = searchStrategy.generateBands(myStringHashes, rows, bands, 0.8);
+
+    for (int i = 0; i < bands; i++)
+    {
+        if (lsh.bands[i].count(myStringBands[i]) > 0)
+        {
+            // We have a match so find it and record similarity
+            std::string foundStr = *lsh.bands[i].at(myStringBands[i]);
+
+            std::vector<uint32_t> foundStrHashes = searchStrategy.generateShinglesSingleHashPipelineTurbo<5>(foundStr);
+
+            double temp = searchStrategy.JaccardSingleHashFast(myStringHashes, foundStrHashes, 0.8);
+
+            if (temp > maxScore)
+            {
+                maxScore = temp;
+                finalFoundStr = foundStr;
+            }
+        }
+    }
+
+
+    auto t32 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(t32 - t31).count();
+
+    std::cout << "# Find Most Similar: " << std::endl;
+    std::cout << "Most Similar String: " << finalFoundStr << std::endl;
+    std::cout << "Time Taken: " << duration << " microseconds" << std::endl;
+
+
+
 
 
     //std::cout << "Similarity: " << similarity << std::endl;

@@ -30,6 +30,20 @@ public:
         return hash;
     }
 
+    uint32_t fnv1a(std::vector<uint32_t> Seq)
+    {
+        uint32_t hash = 2166136261;
+        int len = Seq.size();
+
+        for (int i = 0; i < len; i++)
+        {
+            hash = hash ^ Seq[i];
+            hash = hash * 1099511628211;
+        }
+
+        return hash;
+    }
+
     template<uint32_t K>
     std::vector<uint32_t> generateShinglesSingleHashPipeline(ContainerType Seq)
     {
@@ -71,7 +85,6 @@ public:
     {
         uint32_t pipeline[K] = { 0 };
         int len = Seq.size();
-        //std::vector<uint32_t> ret(200, std::numeric_limits<uint32_t>::max());
         std::vector<uint32_t> ret;
 
         std::make_heap(ret.begin(), ret.end());
@@ -87,14 +100,12 @@ public:
             }
 
             //Collect head of pipeline
-            //ret[i] = pipeline[0];
-            //Collect(pipeline[0]);
             if (ret.size() <= 199)
             {
                 ret.push_back(pipeline[0]); std::push_heap(ret.begin(), ret.end());
             }
 
-            if (pipeline[0] < ret.front() && ret.size()>199)
+            if (pipeline[0] < ret.front() && ret.size() > 199)
             {
                if (set.find(pipeline[0]) == set.end())
                 {
@@ -117,6 +128,25 @@ public:
         }
 
         return ret;
+    }
+
+    std::vector<uint32_t> generateBands(std::vector<uint32_t> minHashes, uint32_t rows, uint32_t bands, uint32_t threshold)
+    {
+
+        // MIGHT HAVE TO PIPELINE THIS COS DOIN IT NICE AND CLEAN COULD BE SLOW
+        std::vector<uint32_t> lsh;
+
+        // Generate a hash for each band
+        for (int i = 0; i < bands; i++)
+        {
+            // Perform fnv1a on the rows
+            auto first = minHashes.begin() + (i*rows);
+            auto last = minHashes.begin() + (i*rows) + rows;
+            std::vector<uint32_t> newVec(first, last);
+            lsh.push_back(fnv1a(newVec));
+        }
+
+        return lsh;
     }
 
     template<uint32_t K>
